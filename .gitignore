@@ -1,0 +1,62 @@
+# === Minecraft Forge 项目 ===
+
+# 构建输出
+build/
+out/
+
+# Gradle 缓存
+.gradle/
+
+# Gradle 发行版（已下载的完整 Gradle）
+gradle-*/
+
+# 游戏运行目录
+run/
+
+# === IDE ===
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# === 操作系统 ===
+
+# Windows
+Thumbs.db
+Desktop.ini
+*.log
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+
+# === 其他 ===
+
+# 编译产物
+*.class
+
+# 所有 jar 默认忽略（包括 deobf 版本）
+*.jar
+
+# 但保留 libs/ 下的编译依赖（Tacz + Embeddium）
+!libs/*.jar
+
+# 日志
+logs/

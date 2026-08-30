@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.qw.taczhacker.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "TimelessBulletEntityMixin",
+    "LivingEntityShootMixin"
+  ],
+  "client": [
+    "BlockRenderMixin",
+    "LocalPlayerMixin",
+    "LocalPlayerShootMixin",
+    "OptionsGammaMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

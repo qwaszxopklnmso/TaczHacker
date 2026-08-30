@@ -1,0 +1,230 @@
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
+}
+
+group = mod_group_id
+version = mod_version
+
+base {
+    archivesName = mod_id
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
+}
+
+minecraft {
+    mappings channel: mapping_channel, version: mapping_version
+
+    copyIdeResources = true
+
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        client {
+            property 'forge.enabledGameTestNamespaces', mod_id
+
+            // 自动重映射 Mixin refmap（Searge -> official）
+            // Tacz 和 simplebedrockmodel 都使用 Searge 映射编译
+            // fixTaczRefmap 任务已修复两个 refmap 中缺失的 @Shadow field f_9743_ 映射
+            // 配合此 remapRefMap 设置，refmap 中的 Searge 方法名/字段名会被自动重映射为 official 名称
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+        }
+
+        server {
+            property 'forge.enabledGameTestNamespaces', mod_id
+            args '--nogui'
+        }
+
+        gameTestServer {
+            property 'forge.enabledGameTestNamespaces', mod_id
+        }
+
+        data {
+            workingDirectory project.file('run-data')
+            args '--mod', mod_id, '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+        }
+    }
+}
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+repositories {
+    // 本地仓库（Tacz + Embeddium 编译依赖）
+    flatDir {
+        dirs 'libs'
+    }
+
+    // 需要 mavenCentral 来解析 mixin annotation processor
+    mavenCentral()
+
+    // Cloth Config API Maven 仓库
+    maven { url "https://maven.shedaniel.me/" }
+    maven { url "https://api.modrinth.com/maven" }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+
+    // Tacz 本地依赖：fg.deobf 自动处理运行时反混淆（Searge -> official）
+    // 使用 libs/ 下的原版 tacz-1.20.1-1.1.8-hotfix.jar，不做任何改动
+    // flatDir 解析规则：tacz-1.20.1-1.1.8-hotfix.jar -> group:name:version = tacz:tacz:1.20.1-1.1.8-hotfix
+    compileOnly fg.deobf('tacz:tacz:1.20.1-1.1.8-hotfix')
+
+    // Embeddium（Sodium 的 Forge 移植版）—— 仅编译时依赖，用于 X-ray 兼容 Mixin
+    // 运行时用户需要自己安装 Embeddium mod
+    compileOnly fg.deobf('embeddium:embeddium:0.3.31+mc1.20.1')
+
+    // Cloth Config API（用于 Forge 配置 UI 菜单）
+    // 用户需要单独安装 Cloth Config API 模组
+    compileOnly fg.deobf("me.shedaniel.cloth:cloth-config-forge:11.1.118")
+    runtimeOnly fg.deobf("me.shedaniel.cloth:cloth-config-forge:11.1.118")
+
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+}
+
+// 1. 复制原版 Tacz jar 到 run/mods（原汁原味，不做任何修改）
+tasks.register('copyTaczToRunMods', Copy) {
+    from file("${projectDir}/libs/tacz-1.20.1-1.1.8-hotfix.jar")
+    into file('run/mods')
+    rename '.*', 'tacz-1.20.1-1.1.8-hotfix.jar'
+}
+
+// 2. 修补 Tacz 和 simplebedrockmodel 的 refmap，添加缺失的 @Shadow field f_9743_ 映射
+//    这个字段在 Searge 映射中叫 f_9743_，在 official 映射中叫 player
+//    Tacz 的 ServerPlayNetHandlerMixin 和 simplebedrockmodel 的 ServerPlayNetHandlerMixin 都有这个 @Shadow 字段
+//    但两个 refmap 都缺失了这个字段的映射条目，导致 Mixin 注入失败
+//    配合 mixin.env.remapRefMap=true，Searge 名称会自动重映射为 official 名称
+tasks.register('fixTaczRefmap') {
+    dependsOn 'copyTaczToRunMods'
+    doLast {
+        def jarFile = file('run/mods/tacz-1.20.1-1.1.8-hotfix.jar')
+        def tempDir = file("${buildDir}/tmp/tacz-fix-${System.currentTimeMillis()}")
+        def nestedJarPath = 'META-INF/jarjar/simplebedrockmodel-2.2.2-forge+mc1.20.1.jar'
+
+        // Step 1: 提取 Tacz jar 到临时目录
+        copy {
+            from zipTree(jarFile)
+            into tempDir
+        }
+
+        // Step 2: 修补 tacz.refmap.json
+        fixRefmapEntry(file("${tempDir}/tacz.refmap.json"),
+                "com/tacz/guns/mixin/common/ServerPlayNetHandlerMixin",
+                "f_9743_",
+                "Lnet/minecraft/server/network/ServerGamePacketListenerImpl;f_9743_")
+
+        // Step 3: 修补 simplebedrockmodel 的 refmap
+        def nestedJarFile = file("${tempDir}/${nestedJarPath}")
+        def nestedJarDir = file("${tempDir}/nested-sbm")
+        if (nestedJarFile.exists()) {
+            // 提取 simplebedrockmodel jar
+            copy {
+                from zipTree(nestedJarFile)
+                into nestedJarDir
+            }
+
+            // 修补 simplebedrockmodel.refmap.json
+            fixRefmapEntry(file("${nestedJarDir}/simplebedrockmodel.refmap.json"),
+                    "com/github/mcmodderanchor/simplebedrockmodel/v1/mixin/ServerPlayNetHandlerMixin",
+                    "f_9743_",
+                    "Lnet/minecraft/server/network/ServerGamePacketListenerImpl;f_9743_")
+
+            // 重新打包 simplebedrockmodel jar
+            delete nestedJarFile
+            ant.jar(destfile: nestedJarFile, basedir: nestedJarDir, compress: "true")
+            delete nestedJarDir
+        }
+
+        // Step 4: 删除原 Tacz jar
+        delete jarFile
+
+        // Step 5: 重新打包 Tacz jar（包含修补后的 refmap 和修补后的 nested jar）
+        ant.jar(destfile: jarFile, basedir: tempDir, compress: "true")
+
+        // Step 6: 清理临时目录
+        delete tempDir
+    }
+}
+
+// 辅助方法：在 refmap 的 mappings 和 data.searge 两个部分都添加缺失的字段映射
+def fixRefmapEntry(File refmapFile, String mixinKey, String fieldEntry, String fieldValue) {
+    if (!refmapFile.exists()) {
+        logger.warn("Refmap not found: ${refmapFile}")
+        return
+    }
+    def json = new groovy.json.JsonSlurper().parse(refmapFile)
+
+    // 在 mappings 部分添加
+    if (json.mappings[mixinKey] != null && !json.mappings[mixinKey].containsKey(fieldEntry)) {
+        json.mappings[mixinKey][fieldEntry] = fieldValue
+        logger.lifecycle("Added '${fieldEntry}' to mappings.${mixinKey}")
+    }
+
+    // 在 data.searge 部分添加（mixin.env.remapRefMap 依赖这个部分进行重映射）
+    if (json.data?.searge?[mixinKey] != null && !json.data.searge[mixinKey].containsKey(fieldEntry)) {
+        json.data.searge[mixinKey][fieldEntry] = fieldValue
+        logger.lifecycle("Added '${fieldEntry}' to data.searge.${mixinKey}")
+    }
+
+    refmapFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json))
+}
+
+// 在 prepareRun 任务后执行修补（而不是直接复制）
+tasks.matching { it.name.startsWith('prepareRun') }.configureEach {
+    dependsOn tasks.named('fixTaczRefmap')
+}
+
+// Mixin 需要在 mods.toml 中声明 mixinConfigs 属性
+// 并在 src/main/resources/ 下创建 mixins.taczhacker.json
+
+tasks.named('processResources', ProcessResources).configure {
+    var replaceProperties = [
+            minecraft_version   : minecraft_version, minecraft_version_range: minecraft_version_range,
+            forge_version       : forge_version, forge_version_range: forge_version_range,
+            loader_version_range: loader_version_range,
+            mod_id              : mod_id, mod_name: mod_name, mod_license: mod_license, mod_version: mod_version,
+            mod_authors         : mod_authors, mod_description: mod_description,
+    ]
+
+    inputs.properties replaceProperties
+
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+        expand replaceProperties + [project: project]
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    manifest {
+        attributes([
+                "Specification-Title"     : mod_id,
+                "Specification-Vendor"    : mod_authors,
+                "Specification-Version"   : "1",
+                "Implementation-Title"    : project.name,
+                "Implementation-Version"  : project.jar.archiveVersion,
+                "Implementation-Vendor"   : mod_authors,
+                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+                "MixinConfigs"            : "taczhacker.mixins.json,taczhacker.embeddium.mixins.json"
+        ])
+    }
+
+    finalizedBy 'reobfJar'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

@@ -1,0 +1,12 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.qw.taczhacker.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "EmbeddiumBlockRenderMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
