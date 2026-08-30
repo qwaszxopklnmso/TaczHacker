@@ -93,9 +93,9 @@ public class FlightHandler {
         } else if (mc.options.keyShift.isDown()) {
             newMotionY = -verticalSpeed;
         } else {
-            // 悬停：抵消重力（Minecraft 每 tick 减 0.04 重力加速度）
-            // 设置 +0.04 使 net Y 运动 ≈ 0，实现悬停
-            newMotionY = 0.04;
+            // 悬停：不主动加力，让重力自然下落（玩家可按空格上升）
+            // 原为 0.04 试图抵消重力，但会导致缓慢上升
+            newMotionY = 0.0;
         }
 
         // 应用速度（限制单 tick 位移防止被踢）

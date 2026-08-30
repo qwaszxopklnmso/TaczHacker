@@ -32,7 +32,7 @@ public class HackConfig {
     // ============================================================
     private static final ForgeConfigSpec.BooleanValue AIM_ENABLED = BUILDER
             .comment("功能1：开火静默自瞄总开关", "Silent aim master switch")
-            .define("aim.enabled", true);
+            .define("aim.enabled", false);
 
     private static final ForgeConfigSpec.DoubleValue AIM_LOCK_RADIUS = BUILDER
             .comment("锁定半径（格）", "Lock radius in blocks")
@@ -40,11 +40,11 @@ public class HackConfig {
 
     private static final ForgeConfigSpec.DoubleValue AIM_CONE_ANGLE = BUILDER
             .comment("追踪锥角（度），0=仅准星方向，180=全向", "Tracking cone angle in degrees")
-            .defineInRange("aim.coneAngle", 30.0, 0.0, 180.0);
+            .defineInRange("aim.coneAngle", 45.0, 0.0, 180.0);
 
     private static final ForgeConfigSpec.DoubleValue AIM_PREDICTION_FACTOR = BUILDER
             .comment("提前量系数（0=直瞄当前位置，1.0=全额预测）", "Prediction factor for moving targets")
-            .defineInRange("aim.predictionFactor", 1.0, 0.0, 5.0);
+            .defineInRange("aim.predictionFactor", 1.0, 0.0, 3.0);
 
     private static final ForgeConfigSpec.BooleanValue AIM_PASS_THROUGH_WALLS = BUILDER
             .comment("是否穿透障碍物选目标（仅影响目标选择，不影响子弹是否撞墙）", "Pass through walls for target selection only")
@@ -61,7 +61,7 @@ public class HackConfig {
                     "Bullet speed in blocks/tick for prediction. "
                     + "Pistol ≈ 10, Rifle ≈ 20, Sniper ≈ 30, Shotgun ≈ 8. "
                     + "Set to 0 to disable prediction (aim at current position).")
-            .defineInRange("aim.bulletSpeed", 10.0, 0.0, 100.0);
+            .defineInRange("aim.bulletSpeed", 16.5, 0.0, 100.0);
 
     private static final ForgeConfigSpec.DoubleValue AIM_RECOIL_COMPENSATION = BUILDER
             .comment("后坐力补偿（度），补偿枪械后坐力对弹道的影响。\n"
@@ -69,7 +69,7 @@ public class HackConfig {
                     + "不同枪后坐力不同，建议值 0.5~5.0，从 1.0 开始试。",
                     "Recoil compensation in degrees. Positive = compensate down (counteract upward recoil), "
                     + "negative = compensate up. Start with 1.0.")
-            .defineInRange("aim.recoilCompensation", 0.0, -20.0, 20.0);
+            .defineInRange("aim.recoilCompensation", 0.1, -20.0, 20.0);
 
     // 单机/局域网专属
     private static final ForgeConfigSpec.BooleanValue AIM_SINGLE_PLAYER_BULLET_PENETRATION = BUILDER
@@ -134,16 +134,6 @@ public class HackConfig {
             .comment("功能4：透视总开关", "X-ray master switch")
             .define("xray.enabled", true);
 
-    private static final ForgeConfigSpec.EnumValue<XrayMode> XRAY_MODE = BUILDER
-            .comment("透视模式：TRANSLUCENT（半透明，地形隐约可见防掉坑）| CLASSIC_HIDE（经典全隐藏，可能掉坑）",
-                    "X-ray mode: TRANSLUCENT (semi-transparent terrain) or CLASSIC_HIDE (fully hidden)")
-            .defineEnum("xray.mode", XrayMode.TRANSLUCENT);
-
-    private static final ForgeConfigSpec.IntValue XRAY_OVERLAY_COLOR = BUILDER
-            .comment("半透明覆盖颜色（ARGB 十六进制，如 0x80FFFFFF=半透明白）",
-                    "Overlay color in ARGB hex")
-            .defineInRange("xray.overlayColor", 0x40FFFFFF, Integer.MIN_VALUE, Integer.MAX_VALUE);
-
     private static final ForgeConfigSpec.ConfigValue<List<? extends String>> XRAY_TARGET_BLOCKS = BUILDER
             .comment("目标方块列表（ResourceLocation），如 [\"minecraft:diamond_ore\", \"minecraft:iron_ore\"]")
             .defineListAllowEmpty("xray.targetBlocks", List.of(
@@ -169,7 +159,7 @@ public class HackConfig {
             ), s -> s instanceof String);
 
     private static final ForgeConfigSpec.BooleanValue XRAY_HIGHLIGHT_TARGETS = BUILDER
-            .comment("目标方块是否高亮显示（全彩，不受半透明影响）", "Highlight target blocks in full color")
+            .comment("目标方块是否高亮显示", "Highlight target blocks")
             .define("xray.highlightTargets", true);
 
     private static final ForgeConfigSpec.BooleanValue XRAY_ENTITY_ESP = BUILDER
@@ -198,13 +188,13 @@ public class HackConfig {
             .define("flight.enabled", true);
 
     private static final ForgeConfigSpec.DoubleValue FLIGHT_HORIZONTAL_SPEED = BUILDER
-            .comment("水平飞行速度（格/tick），建议 ≤0.5 避免触发位置校验",
+            .comment("水平自动前进速度（格/tick），建议 ≤0.5 避免触发位置校验",
                     "Horizontal speed in blocks/tick. Keep ≤0.5 to avoid position checks.")
-            .defineInRange("flight.horizontalSpeed", 0.3, 0.05, 2.0);
+            .defineInRange("flight.horizontalSpeed", 0.0, 0.0, 2.5);
 
     private static final ForgeConfigSpec.DoubleValue FLIGHT_VERTICAL_SPEED = BUILDER
             .comment("垂直飞行速度（格/tick）", "Vertical speed in blocks/tick")
-            .defineInRange("flight.verticalSpeed", 0.3, 0.05, 2.0);
+            .defineInRange("flight.verticalSpeed", 0.4, 0.0, 2.5);
 
     private static final ForgeConfigSpec.BooleanValue FLIGHT_TOGGLE_MODE = BUILDER
             .comment("true=开关切换（按一次开/关），false=按住键才飞", "true=toggle mode, false=hold mode")
@@ -260,8 +250,6 @@ public class HackConfig {
 
         // 功能4
         XRAY_ENABLED.set(xrayEnabled);
-        XRAY_MODE.set(xrayMode);
-        XRAY_OVERLAY_COLOR.set(xrayOverlayColor);
         XRAY_TARGET_BLOCKS.set(xrayTargetBlocks);
         XRAY_HIGHLIGHT_TARGETS.set(xrayHighlightTargets);
         XRAY_ENTITY_ESP.set(xrayEntityESP);
@@ -315,8 +303,6 @@ public class HackConfig {
 
     // 功能4
     public static boolean xrayEnabled;
-    public static XrayMode xrayMode;
-    public static int xrayOverlayColor;
     public static List<? extends String> xrayTargetBlocks;
     public static boolean xrayHighlightTargets;
     public static boolean xrayEntityESP;
@@ -373,8 +359,6 @@ public class HackConfig {
 
             // 功能4
             xrayEnabled = XRAY_ENABLED.get();
-            xrayMode = XRAY_MODE.get();
-            xrayOverlayColor = XRAY_OVERLAY_COLOR.get();
             xrayTargetBlocks = XRAY_TARGET_BLOCKS.get();
             xrayHighlightTargets = XRAY_HIGHLIGHT_TARGETS.get();
             xrayEntityESP = XRAY_ENTITY_ESP.get();
@@ -399,10 +383,5 @@ public class HackConfig {
     public enum AimPosition {
         HEAD,
         BODY
-    }
-
-    public enum XrayMode {
-        TRANSLUCENT,
-        CLASSIC_HIDE
     }
 }

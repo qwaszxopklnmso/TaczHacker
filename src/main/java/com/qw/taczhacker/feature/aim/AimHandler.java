@@ -242,6 +242,8 @@ public class AimHandler {
         for (var entity : level.getEntitiesOfClass(LivingEntity.class, searchBox)) {
             if (entity == shooter) continue;
             if (!entity.isAlive()) continue;
+            // 跳过创造模式玩家
+            if (entity instanceof net.minecraft.world.entity.player.Player targetPlayer && targetPlayer.isCreative()) continue;
 
             double dist = center.distanceTo(entity.position());
             if (dist > radius) continue;

@@ -183,35 +183,6 @@ public class ConfigScreen {
                 Component.literal("透视开关"),
                 HackConfig.xrayEnabled
         ).setSaveConsumer(v -> HackConfig.xrayEnabled = v).build());
-        xrayCat.addEntry(e.startEnumSelector(
-                Component.literal("透视模式"),
-                HackConfig.XrayMode.class,
-                HackConfig.xrayMode
-        ).setSaveConsumer(v -> HackConfig.xrayMode = v).build());
-        xrayCat.addEntry(e.startIntField(
-                Component.literal("覆盖颜色（ARGB 十进制）"),
-                HackConfig.xrayOverlayColor
-        ).setTooltip(Component.literal("十进制输入，如 1082130431=0x40FFFFFF=半透明白。也可在配置文件中直接写十六进制 0x40FFFFFF"))
-                .setMin(Integer.MIN_VALUE).setMax(Integer.MAX_VALUE)
-                .setSaveConsumer(v -> HackConfig.xrayOverlayColor = v)
-                .build());
-        xrayCat.addEntry(e.startStrField(
-                Component.literal("覆盖颜色（ARGB 十六进制）"),
-                String.format("0x%08X", HackConfig.xrayOverlayColor)
-        ).setTooltip(Component.literal("十六进制输入，如 0x40FFFFFF=半透明白。修改后点保存即可"))
-                .setSaveConsumer(v -> {
-                    try {
-                        // 解析十六进制字符串，支持 0x 前缀和无前缀
-                        String hex = v.trim();
-                        if (hex.startsWith("0x") || hex.startsWith("0X")) {
-                            hex = hex.substring(2);
-                        }
-                        HackConfig.xrayOverlayColor = (int) Long.parseLong(hex, 16);
-                    } catch (NumberFormatException ex) {
-                        // 解析失败，忽略
-                    }
-                })
-                .build());
         xrayCat.addEntry(e.startStrList(
                 Component.literal("目标方块列表"),
                 (java.util.List<String>) HackConfig.xrayTargetBlocks
@@ -223,24 +194,6 @@ public class ConfigScreen {
                 HackConfig.xrayHighlightTargets
         ).setTooltip(Component.literal("目标方块全彩显示，不受半透明影响"))
                 .setSaveConsumer(v -> HackConfig.xrayHighlightTargets = v)
-                .build());
-
-        // ============================================================
-        // 功能6：伽马值修改（Fullbright）
-        // ============================================================
-        ConfigCategory fullbrightCat = builder.getOrCreateCategory(Component.literal("功能6：伽马值修改"));
-        fullbrightCat.addEntry(e.startBooleanToggle(
-                Component.literal("全亮开关"),
-                HackConfig.fullbrightEnabled
-        ).setTooltip(Component.literal("按 B 键切换全亮"))
-                .setSaveConsumer(v -> HackConfig.fullbrightEnabled = v)
-                .build());
-        fullbrightCat.addEntry(e.startDoubleField(
-                Component.literal("伽马值"),
-                HackConfig.fullbrightGamma
-        ).setTooltip(Component.literal("0.0=暗，1.0=最大亮度（渲染公式饱和，超过1.0不会更亮）"))
-                .setMin(0.0).setMax(1.0)
-                .setSaveConsumer(v -> HackConfig.fullbrightGamma = v)
                 .build());
 
         // ============================================================
@@ -271,6 +224,24 @@ public class ConfigScreen {
                 HackConfig.flightToggleMode
         ).setTooltip(Component.literal("true=按一次开/关，false=按住才飞"))
                 .setSaveConsumer(v -> HackConfig.flightToggleMode = v)
+                .build());
+
+        // ============================================================
+        // 功能6：伽马值修改（Fullbright）
+        // ============================================================
+        ConfigCategory fullbrightCat = builder.getOrCreateCategory(Component.literal("功能6：伽马值修改"));
+        fullbrightCat.addEntry(e.startBooleanToggle(
+                Component.literal("全亮开关"),
+                HackConfig.fullbrightEnabled
+        ).setTooltip(Component.literal("按 B 键切换全亮"))
+                .setSaveConsumer(v -> HackConfig.fullbrightEnabled = v)
+                .build());
+        fullbrightCat.addEntry(e.startDoubleField(
+                Component.literal("伽马值"),
+                HackConfig.fullbrightGamma
+        ).setTooltip(Component.literal("0.0=暗，1.0=最大亮度（渲染公式饱和，超过1.0不会更亮）"))
+                .setMin(0.0).setMax(1.0)
+                .setSaveConsumer(v -> HackConfig.fullbrightGamma = v)
                 .build());
 
         // 保存回调：用户点击"保存并退出"时持久化配置
