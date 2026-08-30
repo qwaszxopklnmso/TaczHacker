@@ -25,7 +25,7 @@
 - [Embeddium 0.3.31+mc1.20.1](https://www.curseforge.com/minecraft/mc-mods/embeddium)
 - [Cloth Config API 11.1.136-forge](https://www.curseforge.com/minecraft/mc-mods/cloth-config)
 
-你可以在build后把项目根目录下的这三个mod连同本mod(builds/lib/)一起复制到*1.20.1 Forge*游戏的mods目录中
+你可以在build后把项目根目录/libs/下的这三个mod连同本mod(build/libs/)一起复制到*1.20.1 Forge*游戏的mods目录中
 
 ## 构建
 
@@ -44,5 +44,5 @@ gradle build
 
 ## 注意事项
 
-- 部分功能（追踪弹、穿墙子弹）**仅单机/局域网有效**
+- 部分功能（追踪弹、穿墙子弹）**仅单机/双端都装mod有效**
 - 飞行挂请在无反作弊服务器使用
