@@ -52,11 +52,9 @@ Desktop.ini
 # 编译产物
 *.class
 
-# 所有 jar 默认忽略（包括 deobf 版本）
+# 所有 jar 默认忽略
+# Tacz 和 Embeddium jar 在首次 build 时自动下载到 libs/，不存入 git
 *.jar
-
-# 但保留 libs/ 下的编译依赖（Tacz + Embeddium）
-!libs/*.jar
 
 # 日志
 logs/

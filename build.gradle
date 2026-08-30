@@ -39,7 +39,6 @@ minecraft {
 
             // 自动重映射 Mixin refmap（Searge -> official）
             // Tacz 和 simplebedrockmodel 都使用 Searge 映射编译
-            // fixTaczRefmap 任务已修复两个 refmap 中缺失的 @Shadow field f_9743_ 映射
             // 配合此 remapRefMap 设置，refmap 中的 Searge 方法名/字段名会被自动重映射为 official 名称
             property 'mixin.env.remapRefMap', 'true'
             property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
@@ -64,133 +63,67 @@ minecraft {
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 repositories {
-    // 本地仓库（Tacz + Embeddium 编译依赖）
+    // 本地仓库（存放自动下载的 jar 依赖）
     flatDir {
         dirs 'libs'
     }
 
     // 需要 mavenCentral 来解析 mixin annotation processor
     mavenCentral()
-
-    // Cloth Config API Maven 仓库
-    maven { url "https://maven.shedaniel.me/" }
-    maven { url "https://api.modrinth.com/maven" }
 }
 
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
-    // Tacz 本地依赖：fg.deobf 自动处理运行时反混淆（Searge -> official）
-    // 使用 libs/ 下的原版 tacz-1.20.1-1.1.8-hotfix.jar，不做任何改动
-    // flatDir 解析规则：tacz-1.20.1-1.1.8-hotfix.jar -> group:name:version = tacz:tacz:1.20.1-1.1.8-hotfix
+    // ==================== 自动下载依赖 jar ====================
+    // 封装下载逻辑：如果 libs/ 下不存在 jar，自动从 URL 下载
+    // 三个依赖共享同一个下载函数
+    def downloadJar = { String name, String url, File target ->
+        if (!target.exists()) {
+            logger.lifecycle("=" * 46)
+            logger.lifecycle("${name} jar 未找到，正在下载(如果太慢，你也可以将指定版本的${name} jar文件复制到指定目录中)...")
+            logger.lifecycle("  URL: ${url}")
+            logger.lifecycle("  目标: ${target}")
+            try {
+                target.parentFile.mkdirs()
+                def conn = new URL(url).openConnection()
+                // CurseForge CDN 需要 User-Agent，否则返回 403
+                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                conn.setInstanceFollowRedirects(true)
+                target.withOutputStream { it << conn.inputStream }
+                logger.lifecycle("   ${name} jar 下载成功！")
+            } catch (Exception e) {
+                logger.warn("   ${name} jar 下载失败：${e.message}")
+                logger.warn("   请手动下载文件放到 libs/ 目录下")
+                logger.warn("   下载地址: ${url}")
+            }
+            logger.lifecycle("=" * 46)
+        }
+    }
+
+    downloadJar("Tacz", tacz_download_url, file("${projectDir}/libs/tacz-1.20.1-1.1.8-hotfix.jar"))
+    downloadJar("Embeddium", embeddium_download_url, file("${projectDir}/libs/embeddium-0.3.31+mc1.20.1.jar"))
+    downloadJar("Cloth Config API", cloth_config_download_url, file("${projectDir}/libs/cloth-config-11.1.136-forge.jar"))
+    // ==========================================================
+
+    // Tacz 本地依赖（编译时需要，运行时用户自己安装）
     compileOnly fg.deobf('tacz:tacz:1.20.1-1.1.8-hotfix')
 
-    // Embeddium（Sodium 的 Forge 移植版）—— 仅编译时依赖，用于 X-ray 兼容 Mixin
-    // 运行时用户需要自己安装 Embeddium mod
+    // Embeddium 本地依赖（编译时需要，运行时用户自己安装）
     compileOnly fg.deobf('embeddium:embeddium:0.3.31+mc1.20.1')
 
-    // Cloth Config API（用于 Forge 配置 UI 菜单）
-    // 用户需要单独安装 Cloth Config API 模组
-    compileOnly fg.deobf("me.shedaniel.cloth:cloth-config-forge:11.1.118")
-    runtimeOnly fg.deobf("me.shedaniel.cloth:cloth-config-forge:11.1.118")
+    // Cloth Config API 本地依赖（编译和运行都需要）
+    // 运行时需要和编译时一起打包，或者用户自己安装
+    compileOnly fg.deobf('cloth:cloth-config:11.1.136-forge')
+    runtimeOnly fg.deobf('cloth:cloth-config:11.1.136-forge')
 
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
 
-// 1. 复制原版 Tacz jar 到 run/mods（原汁原味，不做任何修改）
-tasks.register('copyTaczToRunMods', Copy) {
-    from file("${projectDir}/libs/tacz-1.20.1-1.1.8-hotfix.jar")
-    into file('run/mods')
-    rename '.*', 'tacz-1.20.1-1.1.8-hotfix.jar'
-}
+// 注意：Tacz、Embeddium 只在编译时需要，运行时需用户自行安装到游戏 mods 目录
+// Cloth Config API 同时需要编译时和运行时引用
 
-// 2. 修补 Tacz 和 simplebedrockmodel 的 refmap，添加缺失的 @Shadow field f_9743_ 映射
-//    这个字段在 Searge 映射中叫 f_9743_，在 official 映射中叫 player
-//    Tacz 的 ServerPlayNetHandlerMixin 和 simplebedrockmodel 的 ServerPlayNetHandlerMixin 都有这个 @Shadow 字段
-//    但两个 refmap 都缺失了这个字段的映射条目，导致 Mixin 注入失败
-//    配合 mixin.env.remapRefMap=true，Searge 名称会自动重映射为 official 名称
-tasks.register('fixTaczRefmap') {
-    dependsOn 'copyTaczToRunMods'
-    doLast {
-        def jarFile = file('run/mods/tacz-1.20.1-1.1.8-hotfix.jar')
-        def tempDir = file("${buildDir}/tmp/tacz-fix-${System.currentTimeMillis()}")
-        def nestedJarPath = 'META-INF/jarjar/simplebedrockmodel-2.2.2-forge+mc1.20.1.jar'
-
-        // Step 1: 提取 Tacz jar 到临时目录
-        copy {
-            from zipTree(jarFile)
-            into tempDir
-        }
-
-        // Step 2: 修补 tacz.refmap.json
-        fixRefmapEntry(file("${tempDir}/tacz.refmap.json"),
-                "com/tacz/guns/mixin/common/ServerPlayNetHandlerMixin",
-                "f_9743_",
-                "Lnet/minecraft/server/network/ServerGamePacketListenerImpl;f_9743_")
-
-        // Step 3: 修补 simplebedrockmodel 的 refmap
-        def nestedJarFile = file("${tempDir}/${nestedJarPath}")
-        def nestedJarDir = file("${tempDir}/nested-sbm")
-        if (nestedJarFile.exists()) {
-            // 提取 simplebedrockmodel jar
-            copy {
-                from zipTree(nestedJarFile)
-                into nestedJarDir
-            }
-
-            // 修补 simplebedrockmodel.refmap.json
-            fixRefmapEntry(file("${nestedJarDir}/simplebedrockmodel.refmap.json"),
-                    "com/github/mcmodderanchor/simplebedrockmodel/v1/mixin/ServerPlayNetHandlerMixin",
-                    "f_9743_",
-                    "Lnet/minecraft/server/network/ServerGamePacketListenerImpl;f_9743_")
-
-            // 重新打包 simplebedrockmodel jar
-            delete nestedJarFile
-            ant.jar(destfile: nestedJarFile, basedir: nestedJarDir, compress: "true")
-            delete nestedJarDir
-        }
-
-        // Step 4: 删除原 Tacz jar
-        delete jarFile
-
-        // Step 5: 重新打包 Tacz jar（包含修补后的 refmap 和修补后的 nested jar）
-        ant.jar(destfile: jarFile, basedir: tempDir, compress: "true")
-
-        // Step 6: 清理临时目录
-        delete tempDir
-    }
-}
-
-// 辅助方法：在 refmap 的 mappings 和 data.searge 两个部分都添加缺失的字段映射
-def fixRefmapEntry(File refmapFile, String mixinKey, String fieldEntry, String fieldValue) {
-    if (!refmapFile.exists()) {
-        logger.warn("Refmap not found: ${refmapFile}")
-        return
-    }
-    def json = new groovy.json.JsonSlurper().parse(refmapFile)
-
-    // 在 mappings 部分添加
-    if (json.mappings[mixinKey] != null && !json.mappings[mixinKey].containsKey(fieldEntry)) {
-        json.mappings[mixinKey][fieldEntry] = fieldValue
-        logger.lifecycle("Added '${fieldEntry}' to mappings.${mixinKey}")
-    }
-
-    // 在 data.searge 部分添加（mixin.env.remapRefMap 依赖这个部分进行重映射）
-    if (json.data?.searge?[mixinKey] != null && !json.data.searge[mixinKey].containsKey(fieldEntry)) {
-        json.data.searge[mixinKey][fieldEntry] = fieldValue
-        logger.lifecycle("Added '${fieldEntry}' to data.searge.${mixinKey}")
-    }
-
-    refmapFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json))
-}
-
-// 在 prepareRun 任务后执行修补（而不是直接复制）
-tasks.matching { it.name.startsWith('prepareRun') }.configureEach {
-    dependsOn tasks.named('fixTaczRefmap')
-}
-
-// Mixin 需要在 mods.toml 中声明 mixinConfigs 属性
-// 并在 src/main/resources/ 下创建 mixins.taczhacker.json
+// Mixin 配置在 mods.toml 中声明
 
 tasks.named('processResources', ProcessResources).configure {
     var replaceProperties = [
