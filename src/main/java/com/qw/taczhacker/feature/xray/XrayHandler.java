@@ -6,7 +6,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
@@ -16,8 +15,12 @@ import net.minecraftforge.fml.common.Mod;
 /**
  * Feature 4: X-ray (Wallhack)
  *
+ * 开启后跳过所有非空气方块的渲染，达到透视效果。
+ * 因面剔除（face culling）问题，无法实现选择性显示特定方块，
+ * 故移除了目标方块列表配置。
+ *
  * Implementation:
- * 1. BlockRenderMixin intercepts ModelBlockRenderer#tesselateBlock, skips non-target blocks
+ * 1. BlockRenderMixin intercepts ModelBlockRenderer#tesselateBlock, skips all non-air blocks
  * 2. On X-ray toggle, force reload all visible chunks
  */
 @Mod.EventBusSubscriber(modid = "taczhacker", value = Dist.CLIENT)
@@ -76,10 +79,5 @@ public class XrayHandler {
 
     public static boolean isXrayActive() {
         return xrayActive;
-    }
-
-    public static boolean isTargetBlock(ResourceLocation blockId) {
-        if (HackConfig.xrayTargetBlocks == null) return false;
-        return HackConfig.xrayTargetBlocks.contains(blockId.toString());
     }
 }

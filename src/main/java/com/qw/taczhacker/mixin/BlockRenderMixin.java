@@ -4,8 +4,6 @@ import com.qw.taczhacker.feature.xray.XrayHandler;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.AirBlock;
@@ -45,14 +43,8 @@ public class BlockRenderMixin {
             // 空气方块不需要处理
             if (state.getBlock() instanceof AirBlock) return;
 
-            // 查询目标方块列表
-            ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
-            if (blockId == null) return;
-
-            // 目标方块正常渲染，非目标方块取消渲染
-            if (!XrayHandler.isTargetBlock(blockId)) {
-                ci.cancel();
-            }
+            // X-ray 开启时跳过所有非空气方块（因面剔除问题无法实现选择性方块显示）
+            ci.cancel();
         } catch (Exception e) {
             // 异常保护：不阻止区块重建
         }

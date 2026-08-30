@@ -4,8 +4,6 @@ import com.qw.taczhacker.feature.xray.XrayHandler;
 import me.jellysquid.mods.sodium.client.render.chunk.compile.ChunkBuildBuffers;
 import me.jellysquid.mods.sodium.client.render.chunk.compile.pipeline.BlockRenderContext;
 import me.jellysquid.mods.sodium.client.render.chunk.compile.pipeline.BlockRenderer;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.AirBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Dynamic;
@@ -41,12 +39,8 @@ public class EmbeddiumBlockRenderMixin {
 
             if (state.getBlock() instanceof AirBlock) return;
 
-            ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
-            if (blockId == null) return;
-
-            if (!XrayHandler.isTargetBlock(blockId)) {
-                ci.cancel();
-            }
+            // X-ray 开启时跳过所有非空气方块（因面剔除问题无法实现选择性方块显示）
+            ci.cancel();
         } catch (Exception e) {
             // 异常保护，不阻止区块重建
         }

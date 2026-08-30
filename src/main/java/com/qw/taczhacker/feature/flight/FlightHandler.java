@@ -33,7 +33,11 @@ public class FlightHandler {
 
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        if (player == null) return;
+        if (player == null) {
+            // 重置按键状态，防止跨世界残留
+            wasKeyDown = false;
+            return;
+        }
 
         // 检查全局开关和功能开关
         if (!HackConfig.globalEnabled || !HackConfig.flightEnabled) {

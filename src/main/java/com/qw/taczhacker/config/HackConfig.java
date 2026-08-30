@@ -134,51 +134,6 @@ public class HackConfig {
             .comment("功能4：透视总开关", "X-ray master switch")
             .define("xray.enabled", true);
 
-    private static final ForgeConfigSpec.ConfigValue<List<? extends String>> XRAY_TARGET_BLOCKS = BUILDER
-            .comment("目标方块列表（ResourceLocation），如 [\"minecraft:diamond_ore\", \"minecraft:iron_ore\"]")
-            .defineListAllowEmpty("xray.targetBlocks", List.of(
-                    "minecraft:diamond_ore",
-                    "minecraft:deepslate_diamond_ore",
-                    "minecraft:iron_ore",
-                    "minecraft:deepslate_iron_ore",
-                    "minecraft:gold_ore",
-                    "minecraft:deepslate_gold_ore",
-                    "minecraft:coal_ore",
-                    "minecraft:deepslate_coal_ore",
-                    "minecraft:emerald_ore",
-                    "minecraft:deepslate_emerald_ore",
-                    "minecraft:copper_ore",
-                    "minecraft:deepslate_copper_ore",
-                    "minecraft:lapis_ore",
-                    "minecraft:deepslate_lapis_ore",
-                    "minecraft:redstone_ore",
-                    "minecraft:deepslate_redstone_ore",
-                    "minecraft:nether_quartz_ore",
-                    "minecraft:nether_gold_ore",
-                    "minecraft:ancient_debris"
-            ), s -> s instanceof String);
-
-    private static final ForgeConfigSpec.BooleanValue XRAY_HIGHLIGHT_TARGETS = BUILDER
-            .comment("目标方块是否高亮显示", "Highlight target blocks")
-            .define("xray.highlightTargets", true);
-
-    private static final ForgeConfigSpec.BooleanValue XRAY_ENTITY_ESP = BUILDER
-            .comment("启用实体 ESP（透过墙体显示实体方框/标签）", "Enable entity ESP box/label rendering")
-            .define("xray.entityESP", false);
-
-    // ============================================================
-    // 功能6：伽马值修改（Fullbright）
-    // ============================================================
-    private static final ForgeConfigSpec.BooleanValue FULLBRIGHT_ENABLED = BUILDER
-            .comment("功能6：伽马值修改总开关",
-                    "Fullbright master switch")
-            .define("fullbright.enabled", true);
-
-    private static final ForgeConfigSpec.DoubleValue FULLBRIGHT_GAMMA = BUILDER
-            .comment("伽马值（0.0=暗，1.0=最大亮度，超过1.0不会更亮因为渲染公式饱和）",
-                    "Gamma value (0.0=dark, 1.0=max brightness). Values > 1.0 have no effect due to rendering formula saturation.")
-            .defineInRange("fullbright.gamma", 1.0, 0.0, 1.0);
-
     // ============================================================
     // 功能5：飞行挂（Fly Hack）
     // ============================================================
@@ -199,6 +154,19 @@ public class HackConfig {
     private static final ForgeConfigSpec.BooleanValue FLIGHT_TOGGLE_MODE = BUILDER
             .comment("true=开关切换（按一次开/关），false=按住键才飞", "true=toggle mode, false=hold mode")
             .define("flight.toggleMode", true);
+
+    // ============================================================
+    // 功能6：伽马值修改（Fullbright）
+    // ============================================================
+    private static final ForgeConfigSpec.BooleanValue FULLBRIGHT_ENABLED = BUILDER
+            .comment("功能6：伽马值修改总开关",
+                    "Fullbright master switch")
+            .define("fullbright.enabled", true);
+
+    private static final ForgeConfigSpec.DoubleValue FULLBRIGHT_GAMMA = BUILDER
+            .comment("伽马值（0.0=暗，1.0=最大亮度，超过1.0不会更亮因为渲染公式饱和）",
+                    "Gamma value (0.0=dark, 1.0=max brightness). Values > 1.0 have no effect due to rendering formula saturation.")
+            .defineInRange("fullbright.gamma", 1.0, 0.0, 1.0);
 
     // ============================================================
     // 构建 SPEC
@@ -250,19 +218,16 @@ public class HackConfig {
 
         // 功能4
         XRAY_ENABLED.set(xrayEnabled);
-        XRAY_TARGET_BLOCKS.set(xrayTargetBlocks);
-        XRAY_HIGHLIGHT_TARGETS.set(xrayHighlightTargets);
-        XRAY_ENTITY_ESP.set(xrayEntityESP);
-
-        // 功能6
-        FULLBRIGHT_ENABLED.set(fullbrightEnabled);
-        FULLBRIGHT_GAMMA.set(fullbrightGamma);
 
         // 功能5
         FLIGHT_ENABLED.set(flightEnabled);
         FLIGHT_HORIZONTAL_SPEED.set(flightHorizontalSpeed);
         FLIGHT_VERTICAL_SPEED.set(flightVerticalSpeed);
         FLIGHT_TOGGLE_MODE.set(flightToggleMode);
+
+        // 功能6
+        FULLBRIGHT_ENABLED.set(fullbrightEnabled);
+        FULLBRIGHT_GAMMA.set(fullbrightGamma);
 
         // 写入文件
         modConfig.save();
@@ -281,7 +246,8 @@ public class HackConfig {
     public static double aimPredictionFactor;
     public static boolean aimPassThroughWalls;
     public static boolean aimRequireGunEquipped;
-    public static double aimBulletSpeed;public static double aimRecoilCompensation;
+    public static double aimBulletSpeed;
+    public static double aimRecoilCompensation;
 
     // 单机/局域网专属
     public static boolean aimSinglePlayerBulletPenetration;
@@ -303,9 +269,6 @@ public class HackConfig {
 
     // 功能4
     public static boolean xrayEnabled;
-    public static List<? extends String> xrayTargetBlocks;
-    public static boolean xrayHighlightTargets;
-    public static boolean xrayEntityESP;
 
     // 功能5
     public static boolean flightEnabled;
@@ -359,9 +322,6 @@ public class HackConfig {
 
             // 功能4
             xrayEnabled = XRAY_ENABLED.get();
-            xrayTargetBlocks = XRAY_TARGET_BLOCKS.get();
-            xrayHighlightTargets = XRAY_HIGHLIGHT_TARGETS.get();
-            xrayEntityESP = XRAY_ENTITY_ESP.get();
 
             // 功能5
             flightEnabled = FLIGHT_ENABLED.get();

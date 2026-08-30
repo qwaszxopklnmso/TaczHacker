@@ -61,3 +61,6 @@ logs/
 
 # AI 辅助说明文件
 AGENTS.md
+
+# push脚本
+while-push.bat

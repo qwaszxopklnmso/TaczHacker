@@ -183,18 +183,6 @@ public class ConfigScreen {
                 Component.literal("透视开关"),
                 HackConfig.xrayEnabled
         ).setSaveConsumer(v -> HackConfig.xrayEnabled = v).build());
-        xrayCat.addEntry(e.startStrList(
-                Component.literal("目标方块列表"),
-                (java.util.List<String>) HackConfig.xrayTargetBlocks
-        ).setTooltip(Component.literal("ResourceLocation 格式，如 minecraft:diamond_ore"))
-                .setSaveConsumer(v -> HackConfig.xrayTargetBlocks = v)
-                .build());
-        xrayCat.addEntry(e.startBooleanToggle(
-                Component.literal("目标方块高亮"),
-                HackConfig.xrayHighlightTargets
-        ).setTooltip(Component.literal("目标方块全彩显示，不受半透明影响"))
-                .setSaveConsumer(v -> HackConfig.xrayHighlightTargets = v)
-                .build());
 
         // ============================================================
         // 功能5：飞行挂
