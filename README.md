@@ -19,13 +19,14 @@
 
 ## 前置依赖
 
-首次构建时自动从 CurseForge CDN 下载：
+首次构建时自动下载到 `libs/`：
 
 - [Tacz 1.20.1-1.1.8-hotfix](https://www.curseforge.com/minecraft/mc-mods/timeless-and-classics-zero)
 - [Embeddium 0.3.31+mc1.20.1](https://www.curseforge.com/minecraft/mc-mods/embeddium)
 - [Cloth Config API 11.1.136-forge](https://www.curseforge.com/minecraft/mc-mods/cloth-config)
+- [ParCool 1.20.1-3.4.3.3](https://modrinth.com/mod/parcool)（功能7 长滑铲用；既是编译期依赖，也会被 `installToMods` 一并装进 mods）
 
-你可以在build后把项目根目录/libs/下的这三个mod连同本mod(build/libs/)一起复制到*1.20.1 Forge*游戏的mods目录中
+你可以在build后把项目根目录/libs/下的这几个mod连同本mod(build/libs/)一起复制到*1.20.1 Forge*游戏的mods目录中
 
 ## 构建
 
@@ -34,6 +35,15 @@ gradle build
 ```
 
 构建产物在 `build/libs/` 目录下。
+
+## 安装
+
+```bash
+gradle installToMods
+```
+
+会把**本 mod**和 **ParCool** 复制到游戏 mods 目录（路径在 `gradle.properties` 的 `game_mods_dir` 里改）。
+其余依赖（Tacz / Embeddium / Cloth Config）不参与复制，避免和手动安装的版本重复。
 
 ## 配置
 

@@ -30,7 +30,8 @@ public class Taczhacker {
     // ============================================================
     // 网络通道
     // ============================================================
-    private static final String PROTOCOL_VERSION = "1";
+    // 握手包携带服务端能力位后协议不再兼容，版本号 +1
+    private static final String PROTOCOL_VERSION = "2";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(MODID, "main"),

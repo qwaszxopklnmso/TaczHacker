@@ -2,11 +2,11 @@ package com.qw.taczhacker.feature.aimbot;
 
 import com.qw.taczhacker.config.HackConfig;
 import com.qw.taczhacker.config.HackConfig.AimPosition;
+import com.qw.taczhacker.feature.aim.TargetFilter;
 import com.qw.taczhacker.keybind.KeyBindings;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
@@ -17,7 +17,6 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -30,7 +29,13 @@ import java.util.List;
 public class AimbotHandler {
 
     private static boolean active = false;
-    private static LivingEntity currentTarget = null;
+
+    /**
+     * 当前锁定目标。
+     * 由客户端线程每 tick 写入，子弹 Mixin 会在集成服务器线程 / 客户端渲染线程读取，
+     * 因此必须是 volatile。
+     */
+    private static volatile LivingEntity currentTarget = null;
 
     /**
      * 每 tick 检测按键状态并执行视角锁定
@@ -129,11 +134,8 @@ public class AimbotHandler {
 
         if (mc.level != null) {
             for (var entity : mc.level.getEntitiesOfClass(LivingEntity.class, searchBox)) {
-                if (entity == player) continue;
-                if (!entity.isAlive()) continue;
-                if (entity instanceof Player && entity.isSpectator()) continue;
-                // 跳过创造模式玩家
-                if (entity instanceof Player targetPlayer && targetPlayer.isCreative()) continue;
+                // 目标过滤（创造/旁观、队友、已驯服、盔甲架、目标类型）
+                if (!TargetFilter.isValid(player, entity)) continue;
 
                 // 视线检查
                 if (!HackConfig.aimbotPassThroughWalls) {
@@ -160,20 +162,37 @@ public class AimbotHandler {
 
     /**
      * 选最优目标（最接近准星方向）
+     *
+     * 修复：旧实现用 min() + 哨兵值 Double.MAX_VALUE 来"排除"身后的目标，
+     * 但 min() 依然会返回该元素，导致视角被甩到身后。
+     * 现在改为先按 FOV 过滤，再比较夹角。
      */
     private static LivingEntity selectBestTarget(LocalPlayer player, List<LivingEntity> targets) {
         Vec3 lookVec = player.getLookAngle();
         Vec3 eyePos = player.getEyePosition(1.0f);
 
-        return targets.stream()
-                .min(Comparator.comparingDouble(target -> {
-                    Vec3 toTarget = target.getEyePosition(1.0f).subtract(eyePos).normalize();
-                    double dot = lookVec.dot(toTarget);
-                    // 限制范围，防止选中背后的目标
-                    if (dot < 0.3) return Double.MAX_VALUE;
-                    return 1.0 - dot; // 角度越小，值越小
-                }))
-                .orElse(null);
+        // 配置的是"视场角的一半"（与准星的夹角），180 度表示不限制
+        double fovDegrees = HackConfig.aimbotFov;
+        double minDot = fovDegrees >= 180.0 ? -1.0 : Math.cos(Math.toRadians(fovDegrees));
+
+        LivingEntity best = null;
+        double bestScore = Double.MAX_VALUE;
+
+        for (LivingEntity target : targets) {
+            Vec3 toTarget = target.getEyePosition(1.0f).subtract(eyePos);
+            if (toTarget.lengthSqr() < 1.0E-6) continue;
+
+            double dot = lookVec.dot(toTarget.normalize());
+            if (dot < minDot) continue; // 不在视场角内
+
+            double score = 1.0 - dot; // 夹角越小，值越小
+            if (score < bestScore) {
+                bestScore = score;
+                best = target;
+            }
+        }
+
+        return best;
     }
 
     /**

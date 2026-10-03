@@ -1,6 +1,5 @@
 package com.qw.taczhacker.mixin;
 
-import com.mojang.logging.LogUtils;
 import com.qw.taczhacker.config.HackConfig;
 import com.qw.taczhacker.feature.aim.AimHandler;
 import com.qw.taczhacker.feature.aim.AimHandler.AimAngles;
@@ -10,11 +9,12 @@ import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import java.lang.reflect.Method;
 
 /**
  * 注意：此 Mixin 在 mixins.json 中配置为 "mixins"（通用列表），
@@ -43,10 +43,40 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(value = com.tacz.guns.entity.EntityKineticBullet.class, remap = false)
 public class TimelessBulletEntityMixin {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
+    /**
+     * AimbotHandler#getCurrentTarget 的反射句柄缓存。
+     *
+     * AimbotHandler 是客户端类，服务端不存在，只能用反射调用；
+     * 缓存在静态字段里，避免每颗子弹每 tick 都做一次 Class.forName + getMethod。
+     */
+    private static Method aimbotGetTargetMethod = null;
 
-    static {
-        LOGGER.info("[TaczHacker][子弹Mixin] TimelessBulletEntityMixin 类已加载！");
+    /** 是否已经尝试过解析反射句柄（失败后不再重试） */
+    private static boolean aimbotMethodResolved = false;
+
+    /**
+     * 获取当前锁定目标（客户端 AimbotHandler），服务端返回 null
+     */
+    private static LivingEntity getAimbotTarget() {
+        if (!aimbotMethodResolved) {
+            aimbotMethodResolved = true;
+            try {
+                Class<?> aimbotClass = Class.forName("com.qw.taczhacker.feature.aimbot.AimbotHandler");
+                aimbotGetTargetMethod = aimbotClass.getMethod("getCurrentTarget");
+            } catch (Throwable t) {
+                // 服务端没有这个类，忽略
+                aimbotGetTargetMethod = null;
+            }
+        }
+        if (aimbotGetTargetMethod == null) {
+            return null;
+        }
+        try {
+            Object result = aimbotGetTargetMethod.invoke(null);
+            return result instanceof LivingEntity living ? living : null;
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     // ============================================================
@@ -89,7 +119,6 @@ public class TimelessBulletEntityMixin {
         Vec3 currentMotion = self.getDeltaMovement();
         double speed = currentMotion.length();
         if (speed < 0.01) {
-            LOGGER.info("[TaczHacker][真·自瞄] 速度太小，跳过");
             return;
         }
 
@@ -106,21 +135,27 @@ public class TimelessBulletEntityMixin {
 
             // 从 yaw/pitch 计算方向向量（无客户端依赖）
             overrideDirectionFromAngles(self, speed, angles);
-            LOGGER.info("[TaczHacker][真·自瞄] 使用 pendingAngles 覆盖方向，角度=({}, {})",
-                    String.format("%.2f", angles.yaw), String.format("%.2f", angles.pitch));
             return;
         }
 
-        // 方案2（fallback）：pendingAngles 为 null 或不是本地玩家子弹
-        // 直接在服务器线程选目标，无视玩家视角和墙体
+        // 方案2（fallback）：pendingAngles 为 null
+        //
+        // 只做「修正」而不是「凭空转向」：如果子弹当前飞行方向与目标方向的夹角
+        // 超过配置的追踪锥角，说明这一枪本来就不是冲着目标去的（例如对天开枪、
+        // 打墙、霰弹枪的多余弹丸），此时保持原方向，避免子弹诡异拐弯打到路人。
         if (self.getOwner() instanceof LivingEntity shooter) {
             LivingEntity target = AimHandler.selectTargetServerSide(shooter);
             if (target != null && target.isAlive()) {
-                // 计算方向：从子弹位置指向目标
-                Vec3 toTarget = target.getEyePosition(1.0f).subtract(self.position()).normalize();
-                self.setDeltaMovement(toTarget.scale(speed));
-                LOGGER.info("[TaczHacker][真·自瞄] 服务器端 fallback：目标={}, 距离={}",
-                        target.getName().getString(), String.format("%.1f", shooter.distanceTo(target)));
+                Vec3 toTarget = target.getEyePosition(1.0f).subtract(self.position());
+                if (toTarget.lengthSqr() > 1.0E-6) {
+                    Vec3 targetDir = toTarget.normalize();
+                    double coneAngle = Math.toRadians(HackConfig.aimConeAngle);
+                    double dot = currentMotion.normalize().dot(targetDir);
+                    double angle = Math.acos(Math.max(-1.0, Math.min(1.0, dot)));
+                    if (angle <= coneAngle) {
+                        self.setDeltaMovement(targetDir.scale(speed));
+                    }
+                }
             }
         }
     }
@@ -194,19 +229,8 @@ public class TimelessBulletEntityMixin {
         }
 
         // ----- 选择目标 -----
-        LivingEntity target = null;
-
-        // 优先使用 Aimbot（功能3）的锁定目标
-        try {
-            Class<?> aimbotClass = Class.forName("com.qw.taczhacker.feature.aimbot.AimbotHandler");
-            java.lang.reflect.Method getTarget = aimbotClass.getMethod("getCurrentTarget");
-            Object result = getTarget.invoke(null);
-            if (result instanceof LivingEntity) {
-                target = (LivingEntity) result;
-            }
-        } catch (Throwable t) {
-            // AimbotHandler 在服务端不存在，忽略
-        }
+        // 优先使用 Aimbot（功能3）的锁定目标（反射句柄已缓存，不再每 tick 解析）
+        LivingEntity target = getAimbotTarget();
 
         if (target == null) {
             // 使用子弹位置为中心的搜索框（而不是以 shooter 为中心）
@@ -333,8 +357,8 @@ public class TimelessBulletEntityMixin {
                 // 速度太小，沿碰撞法线方向给一个默认速度
                 self.setDeltaMovement(normal.scale(1.0));
             }
-            LOGGER.info("[TaczHacker][穿墙] 子弹穿过墙壁，新位置={}, 速度={}",
-                    newPos, String.format("%.2f", speed));
+            // 注意：此处原先每 tick 每个方块碰撞都打一条日志，
+            // 实测一次游戏就刷了 2 万+ 行日志，已移除。需要排查时再临时加回。
             // 跳过方块碰撞，让子弹继续飞行
             ci.cancel();
         }

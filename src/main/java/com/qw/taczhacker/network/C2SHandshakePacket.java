@@ -1,6 +1,7 @@
 package com.qw.taczhacker.network;
 
 import com.qw.taczhacker.Taczhacker;
+import com.qw.taczhacker.config.HackConfig;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
@@ -42,12 +43,15 @@ public class C2SHandshakePacket {
             // 服务端收到握手包，说明客户端也安装了本mod
             ServerPlayer player = ctx.getSender();
             if (player != null) {
-                // 回复确认包到客户端
+                // 回复确认包到客户端，并附带服务端自己实际启用的子弹端能力
                 Taczhacker.CHANNEL.send(
                         PacketDistributor.PLAYER.with(() -> player),
-                        new S2CHandshakeAckPacket()
+                        new S2CHandshakeAckPacket(
+                                HackConfig.aimEnabled,
+                                HackConfig.aimSinglePlayerHomingBullet,
+                                HackConfig.aimSinglePlayerBulletPenetration)
                 );
-                Taczhacker.LOGGER.info("[TaczHacker][握手] 收到客户端握手并回复：{}", player.getName().getString());
+                Taczhacker.LOGGER.debug("[TaczHacker][握手] 收到客户端握手并回复：{}", player.getName().getString());
             }
         });
         ctx.setPacketHandled(true);

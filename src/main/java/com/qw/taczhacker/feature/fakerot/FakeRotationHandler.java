@@ -23,14 +23,38 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = "taczhacker", value = Dist.CLIENT)
 public class FakeRotationHandler {
 
-    /** 当前是否启用低头转圈 */
+    /** 当前是否启用低头转圈（H 键开关，代表玩家意图） */
     private static boolean enabled = false;
+
+    /**
+     * 临时暂停剩余 tick 数。
+     *
+     * 触发场景：
+     * - 功能3（视角锁定）按住时：暂停转圈，让玩家看到真实视角
+     * - 功能1（开火静默自瞄）那一 tick：暂停转圈，保证发给服务器的是瞄准旋转
+     *
+     * 注意：暂停 ≠ 关闭。暂停结束后，只要 enabled 仍为 true 就继续转圈，
+     * 玩家不需要重新按 H 键。
+     */
+    private static int suspendTicks = 0;
 
     /** 当前假旋转的 yaw 值（每 tick 递增） */
     private static float fakeYaw = 0.0f;
 
     /** 距离上次主动发包经过的 tick 数 */
     private static int ticksSinceLastPacket = 0;
+
+    /** 暂停时长（tick）：覆盖 aimbot 松开后的一小段时间与开火瞬间 */
+    public static final int SUSPEND_TICKS = 3;
+
+    /**
+     * 请求临时暂停转圈若干 tick（取最大值，避免短暂停打断长暂停）
+     */
+    public static void suspendFor(int ticks) {
+        if (ticks > suspendTicks) {
+            suspendTicks = ticks;
+        }
+    }
 
     /**
      * 每 tick 处理按键切换和旋转角度更新
@@ -43,21 +67,31 @@ public class FakeRotationHandler {
         LocalPlayer player = mc.player;
         if (player == null) return;
 
+        // 暂停计时
+        if (suspendTicks > 0) {
+            suspendTicks--;
+        }
+
         // 先检查全局开关和功能开关（在按键处理之前，避免浪费按键事件）
         if (!HackConfig.globalEnabled || !HackConfig.fakerotEnabled) {
             if (enabled) {
                 enabled = false;
             }
             ticksSinceLastPacket = 0;
+            suspendTicks = 0;
             return;
         }
 
-        // 如果功能3（视角锁定自瞄）正在激活，自动关闭低头转圈，避免冲突
+        // 功能3（视角锁定自瞄）按住时：临时暂停转圈，而不是把开关关掉。
+        // 松开按键后暂停自动结束，转圈按原开关状态继续。
         if (AimbotHandler.isActive()) {
-            if (enabled) {
-                enabled = false;
-            }
+            suspendFor(SUSPEND_TICKS);
             ticksSinceLastPacket = 0;
+            return;
+        }
+
+        // 暂停中：不发包也不更新角度，但保留 enabled 状态
+        if (suspendTicks > 0) {
             return;
         }
 
@@ -128,14 +162,22 @@ public class FakeRotationHandler {
     }
 
     /**
-     * 是否启用转圈
+     * H 键开关状态（玩家意图），供 HUD 显示
      */
     public static boolean isEnabled() {
         return enabled;
     }
 
     /**
-     * 设置启用状态（供 Mixin 在开火时临时暂停）
+     * 当前是否真的在替换旋转包
+     * = 开关已打开 且 未被临时暂停（aimbot / 开火）
+     */
+    public static boolean isActive() {
+        return enabled && suspendTicks <= 0;
+    }
+
+    /**
+     * 设置启用状态
      */
     public static void setEnabled(boolean enabled) {
         FakeRotationHandler.enabled = enabled;

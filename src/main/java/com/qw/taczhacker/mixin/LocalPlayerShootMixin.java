@@ -1,14 +1,13 @@
 package com.qw.taczhacker.mixin;
 
-import com.mojang.logging.LogUtils;
 import com.qw.taczhacker.config.HackConfig;
 import com.qw.taczhacker.feature.aim.AimHandler;
 import com.qw.taczhacker.feature.aim.AimHandler.AimAngles;
+import com.qw.taczhacker.feature.fakerot.FakeRotationHandler;
 import com.qw.taczhacker.network.ServerDetector;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.LivingEntity;
-import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -37,12 +36,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(value = com.tacz.guns.client.gameplay.LocalPlayerShoot.class, remap = false)
 public class LocalPlayerShootMixin {
-
-    private static final Logger LOGGER = LogUtils.getLogger();
-
-    static {
-        LOGGER.info("[TaczHacker][Mixin] LocalPlayerShootMixin 类已加载！");
-    }
 
     /**
      * 注入到 shoot() 方法开头（HEAD）。
@@ -120,15 +113,16 @@ public class LocalPlayerShootMixin {
         AimHandler.pendingAngles = angles;
 
         // ========== 自动切换 ==========
-        // 如果服务端安装了本mod，由真·自瞄（子弹方向修改）处理，关闭转视角
-        // 单人游戏/局域网/Forge服务器（有本mod）都走这里
-        if (ServerDetector.isServerHasTaczHacker()) {
-            LOGGER.info("[TaczHacker][功能1-转视角] 服务端已安装 TaczHacker，由真·自瞄处理，跳过转视角（已设置 pendingAngles）");
+        // 只有服务端「装了本mod」且「服务端自己开启了子弹自瞄」时，才跳过转视角。
+        // 只看前者会导致：服务端默认配置 aim.enabled=false，客户端不再发旋转包，
+        // 服务端也不改子弹方向 → 功能1 静默失效。
+        if (ServerDetector.isServerAimAvailable()) {
             return;
         }
 
-        LOGGER.info("[TaczHacker][功能1-转视角] onShootBefore 被调用：目标={}, 距离={}",
-                target.getName().getString(), String.format("%.1f", player.distanceTo(target)));
+        // 开火瞬间临时暂停低头转圈：保证这一 tick 发给服务器的是瞄准旋转，
+        // 而不是被 LocalPlayerMixin 替换掉的假旋转（功能1 > 功能2）
+        FakeRotationHandler.suspendFor(FakeRotationHandler.SUSPEND_TICKS);
 
         // 保存原始旋转（使用标记位确保即使旋转为 (0,0) 也能正确恢复）
         AimHandler.originalYaw = player.getYRot();
@@ -142,9 +136,6 @@ public class LocalPlayerShootMixin {
         // 修改本地玩家的旋转（确保 LocalPlayerShoot.shoot() 内的本地计算使用正确角度）
         player.setYRot(angles.yaw);
         player.setXRot(angles.pitch);
-
-        LOGGER.info("[TaczHacker][功能1-转视角] 已发送假旋转包并修改本地旋转：yaw={}, pitch={}",
-                String.format("%.2f", angles.yaw), String.format("%.2f", angles.pitch));
     }
 
     /**
@@ -171,9 +162,6 @@ public class LocalPlayerShootMixin {
                 // 恢复本地玩家的原始旋转
                 player.setYRot(AimHandler.originalYaw);
                 player.setXRot(AimHandler.originalPitch);
-                LOGGER.info("[TaczHacker][功能1-转视角] 已恢复本地旋转：yaw={}, pitch={}",
-                        String.format("%.2f", AimHandler.originalYaw),
-                        String.format("%.2f", AimHandler.originalPitch));
 
                 // 重置原始旋转标记
                 AimHandler.hasOriginalRotation = false;

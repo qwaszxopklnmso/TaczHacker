@@ -25,10 +25,6 @@ public class FullbrightHandler {
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    static {
-        LOGGER.info("[TaczHacker][全亮] FullbrightHandler 类已加载！");
-    }
-
     /** 全亮开关状态 */
     private static boolean fullbrightActive = false;
 
@@ -72,7 +68,6 @@ public class FullbrightHandler {
         // 按键检测（上升沿触发切换）
         boolean isKeyDown = KeyBindings.FULLBRIGHT_KEY.isDown();
         if (isKeyDown && !wasKeyDown) {
-            LOGGER.info("[TaczHacker][全亮] B键按下，切换全亮！当前状态={}", fullbrightActive);
             fullbrightActive = !fullbrightActive;
             if (fullbrightActive) {
                 enableFullbright(mc);
@@ -107,7 +102,7 @@ public class FullbrightHandler {
 
         // 无条件重置为原版默认 gamma 值
         mc.options.gamma().set(0.5);
-        LOGGER.info("[TaczHacker][全亮] 进世界，gamma 已重置为 0.5");
+        LOGGER.debug("[TaczHacker][全亮] 进世界，gamma 已重置为 0.5");
     }
 
     /**
@@ -120,11 +115,9 @@ public class FullbrightHandler {
         if (!hasSavedGamma) {
             savedGamma = mc.options.gamma().get();
             hasSavedGamma = true;
-            LOGGER.info("[TaczHacker][全亮] 保存原始伽马={}", savedGamma);
         }
         double targetGamma = HackConfig.fullbrightGamma;
         mc.options.gamma().set(targetGamma);
-        LOGGER.info("[TaczHacker][全亮] 已启用，伽马={}", mc.options.gamma().get());
     }
 
     /**
@@ -137,7 +130,7 @@ public class FullbrightHandler {
             mc.options.gamma().set(0.5);
         }
         fullbrightActive = false;
-        LOGGER.info("[TaczHacker][全亮] 已禁用，恢复伽马={}", mc.options.gamma().get());
+        LOGGER.debug("[TaczHacker][全亮] 已禁用，恢复伽马={}", mc.options.gamma().get());
     }
 
     /**

@@ -174,6 +174,37 @@ public class ConfigScreen {
                 HackConfig.AimPosition.class,
                 HackConfig.aimbotAimPosition
         ).setSaveConsumer(v -> HackConfig.aimbotAimPosition = v).build());
+        aimbotCat.addEntry(e.startDoubleField(
+                Component.literal("搜索视场角（度）"),
+                HackConfig.aimbotFov
+        ).setTooltip(Component.literal("只锁定与准星夹角小于该值的目标，防止视角被甩到身后。90=正前方半球，180=全向"))
+                .setMin(5.0).setMax(180.0)
+                .setSaveConsumer(v -> HackConfig.aimbotFov = v)
+                .build());
+
+        // ============================================================
+        // 目标过滤（功能1 / 功能3 共用）
+        // ============================================================
+        ConfigCategory targetCat = builder.getOrCreateCategory(Component.literal("目标过滤"));
+        targetCat.addEntry(e.startEnumSelector(
+                Component.literal("目标类型"),
+                HackConfig.TargetMode.class,
+                HackConfig.targetMode
+        ).setTooltip(Component.literal("ALL=所有生物，PLAYERS_ONLY=只打玩家，HOSTILE_ONLY=只打敌对生物"))
+                .setSaveConsumer(v -> HackConfig.targetMode = v).build());
+        targetCat.addEntry(e.startBooleanToggle(
+                Component.literal("忽略已驯服生物"),
+                HackConfig.targetIgnoreTamed
+        ).setTooltip(Component.literal("不打狗、猫、马等已驯服的宠物"))
+                .setSaveConsumer(v -> HackConfig.targetIgnoreTamed = v).build());
+        targetCat.addEntry(e.startBooleanToggle(
+                Component.literal("忽略同队玩家"),
+                HackConfig.targetIgnoreTeammates
+        ).setSaveConsumer(v -> HackConfig.targetIgnoreTeammates = v).build());
+        targetCat.addEntry(e.startBooleanToggle(
+                Component.literal("忽略盔甲架"),
+                HackConfig.targetIgnoreArmorStands
+        ).setSaveConsumer(v -> HackConfig.targetIgnoreArmorStands = v).build());
 
         // ============================================================
         // 功能4：透视
@@ -232,9 +263,43 @@ public class ConfigScreen {
                 .setSaveConsumer(v -> HackConfig.fullbrightGamma = v)
                 .build());
 
+        // ============================================================
+        // 功能7：ParCool 长滑铲
+        // ============================================================
+        ConfigCategory parcoolCat = builder.getOrCreateCategory(Component.literal("功能7：ParCool 长滑铲"));
+        parcoolCat.addEntry(e.startBooleanToggle(
+                Component.literal("长滑铲开关"),
+                HackConfig.parcoolLongSlideEnabled
+        ).setTooltip(Component.literal("滑铲开始后不会自动结束（一直保持滑铲状态，速度比走路快）。\n"
+                + "起滑：ParCool 原生操作（跑动中按爬行键，默认 C）。\n"
+                + "退出：按跳跃键 / 松开后再按一次滑铲键 / 按「取消长滑铲」键（默认 Z）。\n"
+                + "需要客户端安装 ParCool；联机时服务端也要装 ParCool 和本 mod。"))
+                .setSaveConsumer(v -> HackConfig.parcoolLongSlideEnabled = v)
+                .build());
+        parcoolCat.addEntry(e.startBooleanToggle(
+                Component.literal("按跳跃键取消滑铲"),
+                HackConfig.parcoolCancelByJump
+        ).setTooltip(Component.literal("开启后滑铲期间按跳跃键（空格）会结束滑铲。\n"
+                + "这是 ParCool 原版退出滑铲的方式；关闭后滑铲期间跳跃键仍然被 ParCool 屏蔽。"))
+                .setSaveConsumer(v -> HackConfig.parcoolCancelByJump = v)
+                .build());
+        parcoolCat.addEntry(e.startBooleanToggle(
+                Component.literal("滑铲方向跟随视角"),
+                HackConfig.parcoolSteerableSlide
+        ).setTooltip(Component.literal("ParCool 原版滑铲方向在起滑瞬间就固定了（转视角不会转向）。\n"
+                + "开启后滑铲期间转动视角即可改变滑行方向。"))
+                .setSaveConsumer(v -> HackConfig.parcoolSteerableSlide = v)
+                .build());
+        parcoolCat.addEntry(e.startBooleanToggle(
+                Component.literal("不消耗体力"),
+                HackConfig.parcoolInfiniteStamina
+        ).setTooltip(Component.literal("跑酷动作不再扣 ParCool 体力（体力条不动、也不会力竭）。"))
+                .setSaveConsumer(v -> HackConfig.parcoolInfiniteStamina = v)
+                .build());
+
         // 保存回调：用户点击"保存并退出"时持久化配置
         builder.setSavingRunnable(() -> {
-            Taczhacker.LOGGER.info("TaczHacker 配置已保存");
+            Taczhacker.LOGGER.debug("TaczHacker 配置已保存");
             HackConfig.save();
         });
 

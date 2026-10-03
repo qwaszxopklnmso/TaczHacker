@@ -10,7 +10,7 @@ authors = "${mod_authors}"
 description = "${mod_description}"
 properties = { }
 accessTransformers = "accesstransformer.cfg"
-mixinConfigs = "taczhacker.mixins.json,taczhacker.embeddium.mixins.json"
+mixinConfigs = "taczhacker.mixins.json,taczhacker.embeddium.mixins.json,taczhacker.parcool.mixins.json"
 
 [[dependencies.${mod_id}]]
 modId = "forge"
@@ -39,3 +39,10 @@ mandatory = false
 versionRange = "[11.0,)"
 ordering = "NONE"
 side = "CLIENT"
+
+[[dependencies.${mod_id}]]
+modId = "parcool"
+mandatory = false
+versionRange = "[3.4.3.0,)"
+ordering = "AFTER"
+side = "BOTH"

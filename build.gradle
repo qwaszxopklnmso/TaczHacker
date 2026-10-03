@@ -104,6 +104,7 @@ dependencies {
     downloadJar("Tacz", tacz_download_url, file("${projectDir}/libs/tacz-1.20.1-1.1.8-hotfix.jar"))
     downloadJar("Embeddium", embeddium_download_url, file("${projectDir}/libs/embeddium-0.3.31+mc1.20.1.jar"))
     downloadJar("Cloth Config API", cloth_config_download_url, file("${projectDir}/libs/cloth-config-11.1.136-forge.jar"))
+    downloadJar("ParCool", parcool_download_url, file("${projectDir}/libs/ParCool-1.20.1-3.4.3.3.jar"))
     // ==========================================================
 
     // Tacz 本地依赖（编译时需要，运行时用户自己安装）
@@ -111,6 +112,9 @@ dependencies {
 
     // Embeddium 本地依赖（编译时需要，运行时用户自己安装）
     compileOnly fg.deobf('embeddium:embeddium:0.3.31+mc1.20.1')
+
+    // ParCool 本地依赖（编译时需要，运行时用户自己安装；长滑铲功能用）
+    compileOnly fg.deobf('parcool:parcool:1.20.1-3.4.3.3')
 
     // Cloth Config API 本地依赖（编译和运行都需要）
     // 运行时需要和编译时一起打包，或者用户自己安装
@@ -151,7 +155,7 @@ tasks.named('jar', Jar).configure {
                 "Implementation-Version"  : project.jar.archiveVersion,
                 "Implementation-Vendor"   : mod_authors,
                 "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
-                "MixinConfigs"            : "taczhacker.mixins.json,taczhacker.embeddium.mixins.json"
+                "MixinConfigs"            : "taczhacker.mixins.json,taczhacker.embeddium.mixins.json,taczhacker.parcool.mixins.json"
         ])
     }
 
@@ -160,4 +164,50 @@ tasks.named('jar', Jar).configure {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+}
+
+// ============================================================
+// 安装任务：把本 mod 产物 + ParCool 复制到游戏 mods 目录
+//
+//   gradle installToMods
+//
+// 只复制「本 mod」和「ParCool」：
+//   - 本 mod 是构建产物，必须更新
+//   - ParCool 是功能7（长滑铲）的运行时依赖，且玩家可能没装
+// 其余依赖（Tacz / Embeddium / Cloth Config）由玩家自行维护，
+// 不参与复制，以免和手动安装的版本重复（同一个 mod 出现两个 jar）。
+//
+// 目标目录在 gradle.properties 的 game_mods_dir 中配置。
+// ============================================================
+tasks.register('installToMods', Copy) {
+    group = 'taczhacker'
+    description = '把构建产物和 ParCool 复制到游戏的 mods 目录'
+
+    dependsOn tasks.named('reobfJar')
+
+    // 本 mod 的产物（reobfJar 会就地替换这个文件，所以依赖 reobfJar 即可）
+    from(tasks.named('jar').flatMap { it.archiveFile })
+    // ParCool 本体（版本号变化时靠通配符匹配）
+    from(fileTree("${projectDir}/libs") { include 'ParCool-*.jar' })
+    into(game_mods_dir)
+
+    doFirst {
+        def target = file(game_mods_dir)
+        if (!target.exists()) {
+            throw new GradleException("游戏 mods 目录不存在：${target}\n请修改 gradle.properties 中的 game_mods_dir")
+        }
+
+        // 先清掉 mods 目录里本 mod 的旧版本 jar，避免同一个 mod 出现两个 jar
+        def stale = fileTree(target) { include 'taczhacker-*.jar' }.files
+        stale.each { old ->
+            if (old.name != tasks.named('jar').get().archiveFile.get().asFile.name) {
+                logger.lifecycle("删除旧版本：${old.name}")
+                if (!old.delete()) {
+                    throw new GradleException("无法删除旧版本 ${old}，请先关闭游戏再重试")
+                }
+            }
+        }
+
+        logger.lifecycle("安装到：${target}")
+    }
 }

@@ -1,6 +1,7 @@
 package com.qw.taczhacker.network;
 
 import com.qw.taczhacker.Taczhacker;
+import com.qw.taczhacker.config.HackConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
@@ -35,15 +36,20 @@ public class ServerDetectorClientHandler {
         ServerDetector.setSinglePlayer(isSP);
 
         if (isSP) {
-            // 单人游戏/局域网：服务端在同一进程，直接标记为有本mod
-            ServerDetector.setServerHasTaczHacker(true);
-            Taczhacker.LOGGER.info("[TaczHacker][服务端检测] 单人游戏/局域网模式，直接启用真·自瞄");
+            // 单人游戏/局域网：集成服务器与客户端共享同一份 COMMON 配置，
+            // 因此直接按本地配置填充服务端能力位
+            ServerDetector.setServerCapabilities(
+                    true,
+                    HackConfig.aimEnabled,
+                    HackConfig.aimSinglePlayerHomingBullet,
+                    HackConfig.aimSinglePlayerBulletPenetration);
+            Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 单人游戏/局域网模式");
             return;
         }
 
         // 远程服务器：发送握手包检测
         Taczhacker.CHANNEL.sendToServer(new C2SHandshakePacket());
-        Taczhacker.LOGGER.info("[TaczHacker][服务端检测] 已发送握手包到远程服务器，等待回复...");
+        Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 已发送握手包到远程服务器，等待回复...");
     }
 
     /**
@@ -51,8 +57,7 @@ public class ServerDetectorClientHandler {
      */
     @SubscribeEvent
     public static void onClientDisconnected(ClientPlayerNetworkEvent.LoggingOut event) {
-        // 注意：Forge 1.20.1 中 LoggingOut 事件在客户端断开连接时触发
         ServerDetector.reset();
-        Taczhacker.LOGGER.info("[TaczHacker][服务端检测] 断开连接，重置检测状态");
+        Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 断开连接，重置检测状态");
     }
 }

@@ -55,7 +55,13 @@ public class KeyBindings {
             "key.category.taczhacker"
     );
 
-    
+    // 功能7：取消 ParCool 长滑铲（起滑仍用 ParCool 自己的按键）
+    public static final KeyMapping LONG_SLIDE_CANCEL_KEY = new KeyMapping(
+            "key.taczhacker.longslide",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_Z,  // 默认 Z 键
+            "key.category.taczhacker"
+    );
 
     @SubscribeEvent
     public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
@@ -64,6 +70,6 @@ public class KeyBindings {
         event.register(XRAY_KEY);
         event.register(FAKEROT_KEY);
         event.register(FULLBRIGHT_KEY);
-        
+        event.register(LONG_SLIDE_CANCEL_KEY);
     }
 }

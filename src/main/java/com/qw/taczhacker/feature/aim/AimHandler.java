@@ -78,7 +78,6 @@ public class AimHandler {
 
         double radius = HackConfig.aimLockRadius;
         double coneAngle = Math.toRadians(HackConfig.aimConeAngle);
-        double predictionFactor = HackConfig.aimPredictionFactor;
 
         AABB searchBox = player.getBoundingBox().inflate(radius);
         List<LivingEntity> candidates = new ArrayList<>();
@@ -90,10 +89,8 @@ public class AimHandler {
         Vec3 lookVec = player.getLookAngle();
 
         for (var entity : mc.level.getEntitiesOfClass(LivingEntity.class, searchBox)) {
-            if (entity == player) continue;
-            if (!entity.isAlive()) continue;
-            // 跳过创造模式玩家
-            if (entity instanceof net.minecraft.world.entity.player.Player targetPlayer && targetPlayer.isCreative()) continue;
+            // 目标过滤（创造/旁观、队友、已驯服、盔甲架、目标类型）
+            if (!TargetFilter.isValid(player, entity)) continue;
 
             double dist = player.distanceTo(entity);
             if (dist > radius) continue;
@@ -240,10 +237,8 @@ public class AimHandler {
         List<LivingEntity> candidates = new ArrayList<>();
 
         for (var entity : level.getEntitiesOfClass(LivingEntity.class, searchBox)) {
-            if (entity == shooter) continue;
-            if (!entity.isAlive()) continue;
-            // 跳过创造模式玩家
-            if (entity instanceof net.minecraft.world.entity.player.Player targetPlayer && targetPlayer.isCreative()) continue;
+            // 目标过滤（创造/旁观、队友、已驯服、盔甲架、目标类型）
+            if (!TargetFilter.isValid(shooter, entity)) continue;
 
             double dist = center.distanceTo(entity.position());
             if (dist > radius) continue;

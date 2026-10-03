@@ -34,7 +34,7 @@ public class LocalPlayerMixin {
             remap = false
     )
     private float modifyYawInRot(float yaw) {
-        if (FakeRotationHandler.isEnabled()) {
+        if (FakeRotationHandler.isActive()) {
             return FakeRotationHandler.getFakeYaw();
         }
         return yaw;
@@ -53,7 +53,7 @@ public class LocalPlayerMixin {
             remap = false
     )
     private float modifyPitchInRot(float pitch) {
-        if (FakeRotationHandler.isEnabled()) {
+        if (FakeRotationHandler.isActive()) {
             return FakeRotationHandler.getFakePitch();
         }
         return pitch;
@@ -73,7 +73,7 @@ public class LocalPlayerMixin {
             remap = false
     )
     private float modifyYawInPosRot(float yaw) {
-        if (FakeRotationHandler.isEnabled()) {
+        if (FakeRotationHandler.isActive()) {
             return FakeRotationHandler.getFakeYaw();
         }
         return yaw;
@@ -92,7 +92,7 @@ public class LocalPlayerMixin {
             remap = false
     )
     private float modifyPitchInPosRot(float pitch) {
-        if (FakeRotationHandler.isEnabled()) {
+        if (FakeRotationHandler.isActive()) {
             return FakeRotationHandler.getFakePitch();
         }
         return pitch;

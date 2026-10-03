@@ -127,6 +127,33 @@ public class HackConfig {
             .comment("瞄准位置：HEAD（头部）| BODY（身体）", "Aim position: HEAD or BODY")
             .defineEnum("aimbot.aimPosition", AimPosition.HEAD);
 
+    private static final ForgeConfigSpec.DoubleValue AIMBOT_FOV = BUILDER
+            .comment("搜索视场角（度）：只锁定与准星夹角小于该值的目标，防止视角被甩到身后的目标上。\n"
+                    + "90 = 正前方半球，180 = 全向（会锁身后的目标）",
+                    "Target FOV in degrees. Only targets within this angle of the crosshair are locked. "
+                    + "90 = front hemisphere, 180 = any direction.")
+            .defineInRange("aimbot.fov", 75.0, 5.0, 180.0);
+
+    // ============================================================
+    // 目标过滤（功能1 静默自瞄 / 功能3 视角锁定 共用）
+    // ============================================================
+    private static final ForgeConfigSpec.EnumValue<TargetMode> TARGET_MODE = BUILDER
+            .comment("目标类型：ALL（所有生物）| PLAYERS_ONLY（只打玩家）| HOSTILE_ONLY（只打敌对生物）",
+                    "Target type: ALL | PLAYERS_ONLY | HOSTILE_ONLY")
+            .defineEnum("targeting.mode", TargetMode.ALL);
+
+    private static final ForgeConfigSpec.BooleanValue TARGET_IGNORE_TAMED = BUILDER
+            .comment("忽略已驯服的生物（狗、猫、马等）", "Ignore tamed animals")
+            .define("targeting.ignoreTamed", true);
+
+    private static final ForgeConfigSpec.BooleanValue TARGET_IGNORE_TEAMMATES = BUILDER
+            .comment("忽略同队伍/盟友玩家", "Ignore players on the same team")
+            .define("targeting.ignoreTeammates", true);
+
+    private static final ForgeConfigSpec.BooleanValue TARGET_IGNORE_ARMOR_STANDS = BUILDER
+            .comment("忽略盔甲架", "Ignore armor stands")
+            .define("targeting.ignoreArmorStands", true);
+
     // ============================================================
     // 功能4：透视（X-ray）
     // ============================================================
@@ -167,6 +194,38 @@ public class HackConfig {
             .comment("伽马值（0.0=暗，1.0=最大亮度，超过1.0不会更亮因为渲染公式饱和）",
                     "Gamma value (0.0=dark, 1.0=max brightness). Values > 1.0 have no effect due to rendering formula saturation.")
             .defineInRange("fullbright.gamma", 1.0, 0.0, 1.0);
+
+    // ============================================================
+    // 功能7：ParCool 长滑铲
+    // ============================================================
+    private static final ForgeConfigSpec.BooleanValue PARCOOL_LONG_SLIDE_ENABLED = BUILDER
+            .comment("功能7：ParCool 长滑铲。开启后滑铲不会自动结束（一直是滑铲状态，比走路快）。\n"
+                    + "退出滑铲的方式：按跳跃键、或松开后再按一次滑铲键（ParCool 的爬行键，默认 C）、"
+                    + "或按本 mod 的「取消长滑铲」键（默认 Z）。\n"
+                    + "需要玩家同时安装 ParCool；若要联机使用，服务端也要装 ParCool 和本 mod。",
+                    "ParCool long slide. While enabled, a slide never ends on its own. "
+                    + "Stop it with the jump key, by re-pressing the crawl/slide key, or with the cancel key (default Z). "
+                    + "Requires ParCool, on both sides for multiplayer.")
+            .define("parcool.longSlide", true);
+
+    private static final ForgeConfigSpec.BooleanValue PARCOOL_CANCEL_BY_JUMP = BUILDER
+            .comment("功能7：按跳跃键取消滑铲（ParCool 原版就是这么退出的）。\n"
+                    + "关闭后滑铲期间跳跃键依然被 ParCool 屏蔽（原版行为），只能用滑铲键/取消键退出。",
+                    "Cancel the long slide by pressing jump. If disabled, jump stays blocked during the slide.")
+            .define("parcool.cancelByJump", true);
+
+    private static final ForgeConfigSpec.BooleanValue PARCOOL_STEERABLE_SLIDE = BUILDER
+            .comment("功能7：滑铲方向跟随视角。ParCool 原版的滑铲方向在起滑瞬间就固定了，\n"
+                    + "开启后滑铲期间转动视角即可改变滑行方向（跑动中会按你当前视角转向）。",
+                    "Steerable slide: the slide direction follows your view instead of being fixed at start.")
+            .define("parcool.steerableSlide", true);
+
+    private static final ForgeConfigSpec.BooleanValue PARCOOL_INFINITE_STAMINA = BUILDER
+            .comment("功能7附属：不消耗 ParCool 体力。开启后跑酷动作不再扣体力（体力条不动、也不会力竭）。\n"
+                    + "需要玩家同时安装 ParCool。",
+                    "ParCool infinite stamina. While enabled, parkour actions never consume stamina. "
+                    + "Requires ParCool.")
+            .define("parcool.infiniteStamina", true);
 
     // ============================================================
     // 构建 SPEC
@@ -216,6 +275,12 @@ public class HackConfig {
         AIMBOT_PASS_THROUGH_WALLS.set(aimbotPassThroughWalls);
         AIMBOT_AIM_POSITION.set(aimbotAimPosition);
 
+        // 目标过滤
+        TARGET_MODE.set(targetMode);
+        TARGET_IGNORE_TAMED.set(targetIgnoreTamed);
+        TARGET_IGNORE_TEAMMATES.set(targetIgnoreTeammates);
+        TARGET_IGNORE_ARMOR_STANDS.set(targetIgnoreArmorStands);
+
         // 功能4
         XRAY_ENABLED.set(xrayEnabled);
 
@@ -228,6 +293,12 @@ public class HackConfig {
         // 功能6
         FULLBRIGHT_ENABLED.set(fullbrightEnabled);
         FULLBRIGHT_GAMMA.set(fullbrightGamma);
+
+        // 功能7
+        PARCOOL_LONG_SLIDE_ENABLED.set(parcoolLongSlideEnabled);
+        PARCOOL_INFINITE_STAMINA.set(parcoolInfiniteStamina);
+        PARCOOL_CANCEL_BY_JUMP.set(parcoolCancelByJump);
+        PARCOOL_STEERABLE_SLIDE.set(parcoolSteerableSlide);
 
         // 写入文件
         modConfig.save();
@@ -266,6 +337,13 @@ public class HackConfig {
     public static double aimbotSmoothness;
     public static boolean aimbotPassThroughWalls;
     public static AimPosition aimbotAimPosition;
+    public static double aimbotFov;
+
+    // 目标过滤
+    public static TargetMode targetMode;
+    public static boolean targetIgnoreTamed;
+    public static boolean targetIgnoreTeammates;
+    public static boolean targetIgnoreArmorStands;
 
     // 功能4
     public static boolean xrayEnabled;
@@ -279,6 +357,12 @@ public class HackConfig {
     // 功能6
     public static boolean fullbrightEnabled;
     public static double fullbrightGamma;
+
+    // 功能7：ParCool 长滑铲
+    public static boolean parcoolLongSlideEnabled;
+    public static boolean parcoolInfiniteStamina;
+    public static boolean parcoolCancelByJump;
+    public static boolean parcoolSteerableSlide;
 
     /**
      * 配置变更时刷新缓存
@@ -319,6 +403,13 @@ public class HackConfig {
             aimbotSmoothness = AIMBOT_SMOOTHNESS.get();
             aimbotPassThroughWalls = AIMBOT_PASS_THROUGH_WALLS.get();
             aimbotAimPosition = AIMBOT_AIM_POSITION.get();
+            aimbotFov = AIMBOT_FOV.get();
+
+            // 目标过滤
+            targetMode = TARGET_MODE.get();
+            targetIgnoreTamed = TARGET_IGNORE_TAMED.get();
+            targetIgnoreTeammates = TARGET_IGNORE_TEAMMATES.get();
+            targetIgnoreArmorStands = TARGET_IGNORE_ARMOR_STANDS.get();
 
             // 功能4
             xrayEnabled = XRAY_ENABLED.get();
@@ -333,7 +424,13 @@ public class HackConfig {
             fullbrightEnabled = FULLBRIGHT_ENABLED.get();
             fullbrightGamma = FULLBRIGHT_GAMMA.get();
 
-            LOGGER.info("TaczHacker 配置已刷新");
+            // 功能7
+            parcoolLongSlideEnabled = PARCOOL_LONG_SLIDE_ENABLED.get();
+            parcoolInfiniteStamina = PARCOOL_INFINITE_STAMINA.get();
+            parcoolCancelByJump = PARCOOL_CANCEL_BY_JUMP.get();
+            parcoolSteerableSlide = PARCOOL_STEERABLE_SLIDE.get();
+
+            LOGGER.debug("TaczHacker 配置已刷新");
         }
     }
 
@@ -343,5 +440,15 @@ public class HackConfig {
     public enum AimPosition {
         HEAD,
         BODY
+    }
+
+    /** 目标类型过滤 */
+    public enum TargetMode {
+        /** 所有生物 */
+        ALL,
+        /** 只打玩家 */
+        PLAYERS_ONLY,
+        /** 只打敌对生物 */
+        HOSTILE_ONLY
     }
 }
