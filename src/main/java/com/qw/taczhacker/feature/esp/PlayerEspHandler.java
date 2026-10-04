@@ -136,6 +136,8 @@ public class PlayerEspHandler {
             // 瞄 bounding box 顶端（正好头顶）。以前多加了 0.2，线看着会浮在头上
             Vec3 head = new Vec3(entity.getX(), entity.getBoundingBox().maxY, entity.getZ());
             float[] screen = worldToScreen(mc, head);
+            if (screen == null) continue;
+
             drawLine(graphics, centerX, centerY, screen[0], screen[1], color, lineWidth);
 
             if (HackConfig.espShowHealth && entity instanceof LivingEntity living) {
@@ -145,34 +147,45 @@ public class PlayerEspHandler {
     }
 
     /**
-     * 世界坐标 → GUI 坐标
+     * 世界坐标 → GUI 坐标；拿不到有效投影时返回 null
      *
-     * 目标在相机平面之后（背对）时**不返回 null**，而是翻到屏幕外正确的一侧，
-     * 这样线会一直指向那个方向，不会一转身就凭空消失。
+     * 目标在相机平面之后**不能**走透视除法：除以负的 w 会把符号翻掉，
+     * w 接近 0 还会爆成无穷大 —— 结果就是「背后的目标线指向错误的方向」。
+     * 所以背后单独处理：只拿相机空间的 x/y 定方向（右就是右、上就是上），
+     * 大小固定放大到 NDC 的 ±4，肯定落到屏幕外。
      */
     private static float[] worldToScreen(Minecraft mc, Vec3 worldPos) {
-        // 抓下来的矩阵是「相机相对」的，所以先把世界坐标平移到相机坐标系
+        // 抓下来的 view 矩阵是「相机相对」的，先减相机位置
         float relativeX = (float) (worldPos.x - frameCamX);
         float relativeY = (float) (worldPos.y - frameCamY);
         float relativeZ = (float) (worldPos.z - frameCamZ);
 
-        Vector4f vec = new Vector4f(relativeX, relativeY, relativeZ, 1.0F);
-        vec.mul(FRAME_MODELVIEW);
-        vec.mul(FRAME_PROJECTION);
+        // 转到相机空间（相机朝 -Z 看）
+        Vector4f eye = new Vector4f(relativeX, relativeY, relativeZ, 1.0F);
+        eye.mul(FRAME_MODELVIEW);
 
-        float w = vec.w();
+        float ndcX;
+        float ndcY;
 
-        // 用 |w| 做透视除法：w 接近 0（目标正好在视线垂直方向）时直接除会爆成无穷，
-        // 用 1e-4 兜一下，结果会被后面的钳制收进屏幕外一个有限距离
-        float invW = 1.0F / Math.max(1.0E-4F, Math.abs(w));
-        float ndcX = vec.x() * invW;
-        float ndcY = vec.y() * invW;
-
-        // w < 0 = 目标在相机平面之后。除以负 w 已经把它翻到了镜像的一侧，
-        // 再翻回来才是它「应该在」的那一边
-        if (w < 0.0F) {
-            ndcX = -ndcX;
-            ndcY = -ndcY;
+        if (eye.z < -0.05F) {
+            // 相机前方：正常做透视投影
+            Vector4f clip = new Vector4f(eye.x, eye.y, eye.z, 1.0F);
+            clip.mul(FRAME_PROJECTION);
+            if (clip.w <= 1.0E-4F) {
+                return null;
+            }
+            ndcX = clip.x / clip.w;
+            ndcY = clip.y / clip.w;
+        } else {
+            // 相机平面之后：方向只由相机空间的 x/y 决定，不碰 w
+            float length = Mth.sqrt(eye.x * eye.x + eye.y * eye.y);
+            if (length < 1.0E-3F) {
+                // 正好在正后方，没有方向可言，就让它指向屏幕中心
+                length = 1.0E-3F;
+            }
+            float scale = 4.0F / length;
+            ndcX = eye.x * scale;
+            ndcY = eye.y * scale;
         }
 
         float screenW = mc.getWindow().getGuiScaledWidth();
@@ -180,13 +193,6 @@ public class PlayerEspHandler {
 
         float screenX = (ndcX * 0.5F + 0.5F) * screenW;
         float screenY = (-ndcY * 0.5F + 0.5F) * screenH;
-
-        // 背后的目标算出来可能是几百万像素，直接拿去 fill 会画一个巨长的矩形，钳一下
-        float marginX = screenW * 2.0F;
-        float marginY = screenH * 2.0F;
-        screenX = Mth.clamp(screenX, -marginX, screenW + marginX);
-        screenY = Mth.clamp(screenY, -marginY, screenH + marginY);
-
         return new float[]{screenX, screenY};
     }
 
