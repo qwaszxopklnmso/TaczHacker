@@ -181,6 +181,23 @@ public class ConfigScreen {
                 .setMin(5.0).setMax(180.0)
                 .setSaveConsumer(v -> HackConfig.aimbotFov = v)
                 .build());
+        aimbotCat.addEntry(e.startBooleanToggle(
+                Component.literal("显示 FOV 圈"),
+                HackConfig.aimbotFovCircle
+        ).setTooltip(Component.literal("把搜索视场角画成屏幕上的一个圈。\n"
+                + "半径 = (屏幕高/2) × tan(fov) ÷ tan(垂直FOV/2)。\n"
+                + "默认 75° 比屏幕范围还大，圈会落在屏幕外看不见，\n"
+                + "想看到圈就把上面的视场角调到 40 以下。"))
+                .setSaveConsumer(v -> HackConfig.aimbotFovCircle = v)
+                .build());
+        aimbotCat.addEntry(e.startColorField(
+                Component.literal("FOV 圈颜色"),
+                HackConfig.aimbotFovCircleColor
+        ).setTooltip(Component.literal("六位 #RRGGBB。"))
+                .setAlphaMode(false)
+                .setDefaultValue(0xFFFFFF)
+                .setSaveConsumer(v -> HackConfig.aimbotFovCircleColor = v & 0xFFFFFF)
+                .build());
 
         // ============================================================
         // 目标过滤（功能1 / 功能3 共用）

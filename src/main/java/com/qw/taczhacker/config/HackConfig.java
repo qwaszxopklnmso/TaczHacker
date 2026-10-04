@@ -134,6 +134,22 @@ public class HackConfig {
                     + "90 = front hemisphere, 180 = any direction.")
             .defineInRange("aimbot.fov", 75.0, 5.0, 180.0);
 
+    private static final ForgeConfigSpec.BooleanValue AIMBOT_FOV_CIRCLE = BUILDER
+            .comment("在屏幕上画一个圈，标出自瞄的搜索范围（FOV 圈）。\n"
+                    + "半径 = (屏幕高/2) * tan(fov) / tan(垂直FOV/2)，\n"
+                    + "所以 fov 比屏幕范围还大时（默认 75° 就是）圈会落在屏幕外看不见，\n"
+                    + "调到 40° 以下才有明显的圈。",
+                    "Draw a circle showing the aimbot search FOV. "
+                    + "Large FOV values put the circle off-screen.")
+            .define("aimbot.fovCircle", true);
+
+    private static final ForgeConfigSpec.IntValue AIMBOT_FOV_CIRCLE_COLOR = BUILDER
+            .comment("FOV 圈颜色，填 #RRGGBB 六位十六进制对应的十进制值（0 ~ 0xFFFFFF）。\n"
+                    + "不要带 alpha 字节：Cloth Config 的颜色控件在无 alpha 模式下要求恰好 6 位 hex，\n"
+                    + "否则会报「不允许Alpha值！」。",
+                    "FOV circle color: decimal value of a #RRGGBB hex. Do NOT include an alpha byte.")
+            .defineInRange("aimbot.fovCircleColor", 0xFFFFFF, Integer.MIN_VALUE, Integer.MAX_VALUE);
+
     // ============================================================
     // 目标过滤（功能1 静默自瞄 / 功能3 视角锁定 共用）
     // ============================================================
@@ -393,6 +409,9 @@ public class HackConfig {
         AIMBOT_SMOOTHNESS.set(aimbotSmoothness);
         AIMBOT_PASS_THROUGH_WALLS.set(aimbotPassThroughWalls);
         AIMBOT_AIM_POSITION.set(aimbotAimPosition);
+        AIMBOT_FOV.set(aimbotFov);
+        AIMBOT_FOV_CIRCLE.set(aimbotFovCircle);
+        AIMBOT_FOV_CIRCLE_COLOR.set(aimbotFovCircleColor & 0xFFFFFF);
 
         // 目标过滤
         TARGET_MODE.set(targetMode);
@@ -484,6 +503,8 @@ public class HackConfig {
     public static boolean aimbotPassThroughWalls;
     public static AimPosition aimbotAimPosition;
     public static double aimbotFov;
+    public static boolean aimbotFovCircle;
+    public static int aimbotFovCircleColor;
 
     // 目标过滤
     public static TargetMode targetMode;
@@ -577,6 +598,8 @@ public class HackConfig {
             aimbotPassThroughWalls = AIMBOT_PASS_THROUGH_WALLS.get();
             aimbotAimPosition = AIMBOT_AIM_POSITION.get();
             aimbotFov = AIMBOT_FOV.get();
+            aimbotFovCircle = AIMBOT_FOV_CIRCLE.get();
+            aimbotFovCircleColor = AIMBOT_FOV_CIRCLE_COLOR.get() & 0xFFFFFF;
 
             // 目标过滤
             targetMode = TARGET_MODE.get();

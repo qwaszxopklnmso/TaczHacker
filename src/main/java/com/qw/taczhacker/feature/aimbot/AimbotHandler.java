@@ -3,8 +3,10 @@ package com.qw.taczhacker.feature.aimbot;
 import com.qw.taczhacker.config.HackConfig;
 import com.qw.taczhacker.config.HackConfig.AimPosition;
 import com.qw.taczhacker.feature.aim.TargetFilter;
+import com.qw.taczhacker.feature.esp.EspRenderer;
 import com.qw.taczhacker.keybind.KeyBindings;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.ClipContext;
@@ -12,6 +14,8 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.RenderGuiOverlayEvent;
+import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -221,5 +225,44 @@ public class AimbotHandler {
      */
     public static boolean isActive() {
         return active;
+    }
+
+    /**
+     * FOV 圈：把 aimbot.fov 的搜索范围画在屏幕上（纯客户端，常显，不用按住 V）
+     *
+     * 半径换算：aimbot.fov 是「从准星算起的最大夹角」（也就是半角），
+     * MC 的 fov 设置是垂直 FOV。屏幕像素是方的，所以
+     *     r = (屏幕高 / 2) * tan(夹角) / tan(垂直FOV / 2)
+     * 这个式子在水平和垂直方向同时成立。
+     *
+     * 注意：默认 fov = 75° 时半径比屏幕还大（整个屏幕都在范围内），
+     * 圈会落在屏幕外看不见 —— 调到 40° 以下才有明显的圈。
+     */
+    @SubscribeEvent
+    public static void onRenderOverlay(RenderGuiOverlayEvent.Post event) {
+        if (event.getOverlay() != VanillaGuiOverlay.HOTBAR.type()) return;
+        if (!HackConfig.globalEnabled || !HackConfig.aimbotEnabled || !HackConfig.aimbotFovCircle) return;
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+
+        double fovDegrees = HackConfig.aimbotFov;
+        if (fovDegrees <= 0.0D) return;
+
+        float screenWidth = mc.getWindow().getGuiScaledWidth();
+        float screenHeight = mc.getWindow().getGuiScaledHeight();
+
+        double verticalFov = mc.options.fov().get();
+        if (verticalFov <= 1.0D) return;
+
+        double radius = (screenHeight / 2.0D) * Math.tan(Math.toRadians(fovDegrees))
+                / Math.tan(Math.toRadians(verticalFov / 2.0D));
+
+        // 半径太离谱就不画，免得整屏都在画屏幕外的无效像素
+        if (radius > Math.max(screenWidth, screenHeight) * 3.0D) return;
+
+        int color = HackConfig.aimbotFovCircleColor | 0xFF000000;
+        EspRenderer.drawCircle(event.getGuiGraphics(),
+                screenWidth / 2.0F, screenHeight / 2.0F, (float) radius, color, 1.0F);
     }
 }

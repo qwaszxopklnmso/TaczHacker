@@ -61,6 +61,31 @@ public final class EspRenderer {
     }
 
     /**
+     * 画一个圆
+     *
+     * GuiGraphics 没有圆弧 API，所以用线段拼：段数随半径增加，
+     * 少了会明显看出多边形。
+     */
+    public static void drawCircle(GuiGraphics graphics, float centerX, float centerY, float radius,
+                                  int color, float width) {
+        if (radius < 1.0F) return;
+
+        int segments = Mth.clamp((int) (radius * 0.8F), 24, 128);
+        double step = Math.PI * 2.0D / segments;
+
+        float prevX = centerX + radius;
+        float prevY = centerY;
+        for (int i = 1; i <= segments; i++) {
+            double angle = step * i;
+            float x = centerX + (float) (Math.cos(angle) * radius);
+            float y = centerY + (float) (Math.sin(angle) * radius);
+            drawLine(graphics, prevX, prevY, x, y, color, width);
+            prevX = x;
+            prevY = y;
+        }
+    }
+
+    /**
      * 画 2D 包围盒
      *
      * 调用前先用 {@link ScreenProjector#isInFront} 确认目标在相机前方，
