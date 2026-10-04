@@ -68,6 +68,11 @@ public final class SilentScope {
         lastShotTick = tickCounter;
         if (scopeSent) return;
 
+        // 玩家自己正在开镜时不用我们插手：Tacz 客户端本来就会把瞄准状态同步给服务端，
+        // 我们再发一遍的话，收镜时反而会把他的开镜一起关掉
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null && isLocallyAiming(mc.player)) return;
+
         scopeSent = true;
         sendAim(true);
     }
@@ -103,7 +108,10 @@ public final class SilentScope {
 
         if (scopeSent && tickCounter - lastShotTick > RELEASE_DELAY) {
             scopeSent = false;
-            sendAim(false);
+            // 这期间玩家自己按下了开镜键：服务端本来就该是瞄准状态，别给他关掉
+            if (!isLocallyAiming(player)) {
+                sendAim(false);
+            }
         }
 
         if (scopeSent) {
