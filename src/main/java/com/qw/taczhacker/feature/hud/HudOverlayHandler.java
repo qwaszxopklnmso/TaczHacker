@@ -2,6 +2,7 @@ package com.qw.taczhacker.feature.hud;
 
 import com.qw.taczhacker.config.HackConfig;
 import com.qw.taczhacker.feature.aimbot.AimbotHandler;
+import com.qw.taczhacker.feature.esp.PlayerEspHandler;
 import com.qw.taczhacker.feature.fakerot.FakeRotationHandler;
 import com.qw.taczhacker.feature.flight.FlightHandler;
 import com.qw.taczhacker.feature.fullbright.FullbrightHandler;
@@ -58,6 +59,9 @@ public class HudOverlayHandler {
         // 功能7：ParCool 长滑铲（运行时状态在 ParCool 内部，这里显示功能开关）
         entries.add(new Entry("长滑铲", () -> HackConfig.parcoolLongSlideEnabled,
                 () -> ParCoolLongSlide.isForcing()));
+        // 功能8：玩家 ESP（按 J 切换）
+        entries.add(new Entry("玩家ESP", () -> HackConfig.espEnabled,
+                () -> PlayerEspHandler.isEspActive()));
     }
 
     @SubscribeEvent

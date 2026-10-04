@@ -228,6 +228,34 @@ public class HackConfig {
             .define("parcool.infiniteStamina", true);
 
     // ============================================================
+    // 功能8：玩家 ESP（准心连线）
+    // ============================================================
+    private static final ForgeConfigSpec.BooleanValue ESP_ENABLED = BUILDER
+            .comment("功能8：玩家 ESP 总开关。开启后按 ESP 键（默认 J）切换显示，\n"
+                    + "会从屏幕准心向每个目标头顶的屏幕位置画一条线。\n"
+                    + "纯客户端渲染，不发包、不改游戏状态，服务端装不装本 mod 都能用。",
+                    "Player ESP master switch. Lines are drawn from the crosshair to each target's head.")
+            .define("esp.enabled", true);
+
+    private static final ForgeConfigSpec.DoubleValue ESP_MAX_DISTANCE = BUILDER
+            .comment("ESP 最远显示距离（格）", "ESP max render distance in blocks")
+            .defineInRange("esp.maxDistance", 128.0, 8.0, 512.0);
+
+    private static final ForgeConfigSpec.IntValue ESP_COLOR = BUILDER
+            .comment("ESP 线条颜色（ARGB，默认 0xFF00FF00 不透明绿）",
+                    "ESP line color in ARGB (default 0xFF00FF00 opaque green)")
+            .defineInRange("esp.color", 0xFF00FF00, Integer.MIN_VALUE, Integer.MAX_VALUE);
+
+    private static final ForgeConfigSpec.DoubleValue ESP_LINE_WIDTH = BUILDER
+            .comment("ESP 线条粗细（像素）", "ESP line width in pixels")
+            .defineInRange("esp.lineWidth", 1.5, 0.5, 6.0);
+
+    private static final ForgeConfigSpec.BooleanValue ESP_INCLUDE_MOBS = BUILDER
+            .comment("是否也给非玩家生物画线（默认只画玩家）",
+                    "Also draw lines to non-player living entities")
+            .define("esp.includeMobs", false);
+
+    // ============================================================
     // 构建 SPEC
     // ============================================================
     public static final ForgeConfigSpec SPEC = BUILDER.build();
@@ -300,6 +328,13 @@ public class HackConfig {
         PARCOOL_CANCEL_BY_JUMP.set(parcoolCancelByJump);
         PARCOOL_STEERABLE_SLIDE.set(parcoolSteerableSlide);
 
+        // 功能8
+        ESP_ENABLED.set(espEnabled);
+        ESP_MAX_DISTANCE.set(espMaxDistance);
+        ESP_COLOR.set(espColor);
+        ESP_LINE_WIDTH.set(espLineWidth);
+        ESP_INCLUDE_MOBS.set(espIncludeMobs);
+
         // 写入文件
         modConfig.save();
     }
@@ -363,6 +398,13 @@ public class HackConfig {
     public static boolean parcoolInfiniteStamina;
     public static boolean parcoolCancelByJump;
     public static boolean parcoolSteerableSlide;
+
+    // 功能8：玩家 ESP
+    public static boolean espEnabled;
+    public static double espMaxDistance;
+    public static int espColor;
+    public static double espLineWidth;
+    public static boolean espIncludeMobs;
 
     /**
      * 配置变更时刷新缓存
@@ -429,6 +471,13 @@ public class HackConfig {
             parcoolInfiniteStamina = PARCOOL_INFINITE_STAMINA.get();
             parcoolCancelByJump = PARCOOL_CANCEL_BY_JUMP.get();
             parcoolSteerableSlide = PARCOOL_STEERABLE_SLIDE.get();
+
+            // 功能8
+            espEnabled = ESP_ENABLED.get();
+            espMaxDistance = ESP_MAX_DISTANCE.get();
+            espColor = ESP_COLOR.get();
+            espLineWidth = ESP_LINE_WIDTH.get();
+            espIncludeMobs = ESP_INCLUDE_MOBS.get();
 
             LOGGER.debug("TaczHacker 配置已刷新");
         }

@@ -297,6 +297,46 @@ public class ConfigScreen {
                 .setSaveConsumer(v -> HackConfig.parcoolInfiniteStamina = v)
                 .build());
 
+        // ============================================================
+        // 功能8：玩家 ESP（准心连线）
+        // ============================================================
+        ConfigCategory espCat = builder.getOrCreateCategory(Component.literal("功能8：玩家 ESP"));
+        espCat.addEntry(e.startBooleanToggle(
+                Component.literal("ESP 开关"),
+                HackConfig.espEnabled
+        ).setTooltip(Component.literal("开启后按 ESP 键（默认 J）切换显示。\n"
+                + "会从屏幕准心向每个目标头顶的屏幕位置画一条线。\n"
+                + "纯客户端渲染，不发包、不改游戏状态，服务端装不装本 mod 都能用。"))
+                .setSaveConsumer(v -> HackConfig.espEnabled = v)
+                .build());
+        espCat.addEntry(e.startDoubleField(
+                Component.literal("最远显示距离（格）"),
+                HackConfig.espMaxDistance
+        ).setTooltip(Component.literal("超过这个距离的目标不画线。"))
+                .setMin(8.0).setMax(512.0)
+                .setSaveConsumer(v -> HackConfig.espMaxDistance = v)
+                .build());
+        espCat.addEntry(e.startColorField(
+                Component.literal("线条颜色"),
+                HackConfig.espColor
+        ).setTooltip(Component.literal("默认不透明绿。Alpha 也能调，调成 0 就看不见了。"))
+                .setDefaultValue(0xFF00FF00)
+                .setSaveConsumer(v -> HackConfig.espColor = v)
+                .build());
+        espCat.addEntry(e.startDoubleField(
+                Component.literal("线条粗细（像素）"),
+                HackConfig.espLineWidth
+        ).setTooltip(Component.literal("1 最细，建议 1~3。"))
+                .setMin(0.5).setMax(6.0)
+                .setSaveConsumer(v -> HackConfig.espLineWidth = v)
+                .build());
+        espCat.addEntry(e.startBooleanToggle(
+                Component.literal("也给生物画线"),
+                HackConfig.espIncludeMobs
+        ).setTooltip(Component.literal("默认只画玩家；开启后僵尸、动物这些也会画。"))
+                .setSaveConsumer(v -> HackConfig.espIncludeMobs = v)
+                .build());
+
         // 保存回调：用户点击"保存并退出"时持久化配置
         builder.setSavingRunnable(() -> {
             Taczhacker.LOGGER.debug("TaczHacker 配置已保存");

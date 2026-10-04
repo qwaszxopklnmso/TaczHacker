@@ -63,6 +63,14 @@ public class KeyBindings {
             "key.category.taczhacker"
     );
 
+    // 功能8：玩家 ESP（准心连线，开关切换）
+    public static final KeyMapping ESP_KEY = new KeyMapping(
+            "key.taczhacker.esp",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_J,  // 默认 J 键
+            "key.category.taczhacker"
+    );
+
     @SubscribeEvent
     public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         event.register(AIMBOT_KEY);
@@ -71,5 +79,6 @@ public class KeyBindings {
         event.register(FAKEROT_KEY);
         event.register(FULLBRIGHT_KEY);
         event.register(LONG_SLIDE_CANCEL_KEY);
+        event.register(ESP_KEY);
     }
 }
