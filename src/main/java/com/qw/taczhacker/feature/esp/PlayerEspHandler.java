@@ -132,17 +132,18 @@ public class PlayerEspHandler {
 
             if (self.distanceToSqr(entity) > maxDistanceSq) continue;
 
-            // 瞄头顶而不是脚底，线才不会插进地里
-            Vec3 head = new Vec3(entity.getX(), entity.getBoundingBox().maxY + 0.2D, entity.getZ());
+            // 瞄 bounding box 顶端（正好头顶）。以前多加了 0.2，线看着会浮在头上
+            Vec3 head = new Vec3(entity.getX(), entity.getBoundingBox().maxY, entity.getZ());
             float[] screen = worldToScreen(mc, head);
-            if (screen == null) continue;
-
             drawLine(graphics, centerX, centerY, screen[0], screen[1], color, lineWidth);
         }
     }
 
     /**
-     * 世界坐标 → GUI 坐标；目标在相机平面之后时返回 null
+     * 世界坐标 → GUI 坐标
+     *
+     * 目标在相机平面之后（背对）时**不返回 null**，而是翻到屏幕外正确的一侧，
+     * 这样线会一直指向那个方向，不会一转身就凭空消失。
      */
     private static float[] worldToScreen(Minecraft mc, Vec3 worldPos) {
         // 抓下来的矩阵是「相机相对」的，所以先把世界坐标平移到相机坐标系
@@ -154,16 +155,33 @@ public class PlayerEspHandler {
         vec.mul(FRAME_MODELVIEW);
         vec.mul(FRAME_PROJECTION);
 
-        // w <= 0 说明点在相机平面之后，透视除法会翻到屏幕另一侧，必须丢掉
-        if (vec.w() <= 0.01F) {
-            return null;
+        float w = vec.w();
+
+        // 用 |w| 做透视除法：w 接近 0（目标正好在视线垂直方向）时直接除会爆成无穷，
+        // 用 1e-4 兜一下，结果会被后面的钳制收进屏幕外一个有限距离
+        float invW = 1.0F / Math.max(1.0E-4F, Math.abs(w));
+        float ndcX = vec.x() * invW;
+        float ndcY = vec.y() * invW;
+
+        // w < 0 = 目标在相机平面之后。除以负 w 已经把它翻到了镜像的一侧，
+        // 再翻回来才是它「应该在」的那一边
+        if (w < 0.0F) {
+            ndcX = -ndcX;
+            ndcY = -ndcY;
         }
 
-        float ndcX = vec.x() / vec.w();
-        float ndcY = vec.y() / vec.w();
+        float screenW = mc.getWindow().getGuiScaledWidth();
+        float screenH = mc.getWindow().getGuiScaledHeight();
 
-        float screenX = (float) ((ndcX * 0.5D + 0.5D) * mc.getWindow().getGuiScaledWidth());
-        float screenY = (float) ((-ndcY * 0.5D + 0.5D) * mc.getWindow().getGuiScaledHeight());
+        float screenX = (ndcX * 0.5F + 0.5F) * screenW;
+        float screenY = (-ndcY * 0.5F + 0.5F) * screenH;
+
+        // 背后的目标算出来可能是几百万像素，直接拿去 fill 会画一个巨长的矩形，钳一下
+        float marginX = screenW * 2.0F;
+        float marginY = screenH * 2.0F;
+        screenX = Mth.clamp(screenX, -marginX, screenW + marginX);
+        screenY = Mth.clamp(screenY, -marginY, screenH + marginY);
+
         return new float[]{screenX, screenY};
     }
 
