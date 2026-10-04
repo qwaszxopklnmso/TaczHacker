@@ -33,11 +33,18 @@ public class Taczhacker {
     // 握手包携带服务端能力位后协议不再兼容，版本号 +1
     private static final String PROTOCOL_VERSION = "2";
 
+    // 注意：这里的两个 Predicate 必须用 NetworkRegistry.acceptMissingOr 包一层。
+    // 只写 PROTOCOL_VERSION::equals 的话，服务端没装本 mod 时它报的通道版本是 ABSENT，
+    // 不等于 "2" 会被直接拒绝，客户端连都连不上（日志：
+    //   Channels [taczhacker:main] rejected their server side version number）。
+    // mods.toml 的 displayTest 只管「mod 列表」那一关，管不了这里的「通道」校验。
+    // acceptMissingOr = 接受 协议版本 或 ABSENT 或 ACCEPTVANILLA。
+    // 服务端装了本 mod 但协议版本对不上时，仍然会被拒绝（这是我们要的保护）。
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(MODID, "main"),
             () -> PROTOCOL_VERSION,
-            PROTOCOL_VERSION::equals,
-            PROTOCOL_VERSION::equals
+            NetworkRegistry.acceptMissingOr(PROTOCOL_VERSION::equals),
+            NetworkRegistry.acceptMissingOr(PROTOCOL_VERSION::equals)
     );
 
     public Taczhacker() {

@@ -3,6 +3,7 @@ package com.qw.taczhacker.network;
 import com.qw.taczhacker.Taczhacker;
 import com.qw.taczhacker.config.HackConfig;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.Connection;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -48,8 +49,16 @@ public class ServerDetectorClientHandler {
         }
 
         // 远程服务器：发送握手包检测
-        Taczhacker.CHANNEL.sendToServer(new C2SHandshakePacket());
-        Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 已发送握手包到远程服务器，等待回复...");
+        // 服务端没装本 mod 时这个通道在对面不存在（协商结果是 ABSENT），不能发，
+        // 直接按「无服务端能力」处理，功能1 继续走转视角方案
+        Connection connection = mc.getConnection() == null ? null : mc.getConnection().getConnection();
+        if (connection != null && Taczhacker.CHANNEL.isRemotePresent(connection)) {
+            Taczhacker.CHANNEL.sendToServer(new C2SHandshakePacket());
+            Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 已发送握手包到远程服务器，等待回复...");
+        } else {
+            ServerDetector.setServerCapabilities(false, false, false, false);
+            Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 服务端未安装本 mod（通道不存在），使用纯客户端方案");
+        }
     }
 
     /**
