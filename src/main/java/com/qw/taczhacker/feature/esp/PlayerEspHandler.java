@@ -1,14 +1,11 @@
 package com.qw.taczhacker.feature.esp;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import com.qw.taczhacker.config.HackConfig;
 import com.qw.taczhacker.feature.render.ScreenProjector;
 import com.qw.taczhacker.keybind.KeyBindings;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -21,18 +18,19 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 /**
- * 功能8：玩家 ESP（准心连线）
+ * 功能8：ESP（准心连线 / 方框 / 骨骼）
  *
- * 从屏幕正中心的准心向外画一条线，连到每个目标头顶在屏幕上的投影位置。
- * 纯客户端渲染，不发任何包，也不改任何游戏状态 —— 服务端装不装本 mod 都一样能用。
+ * 三种画法挂在同一个开关（默认 J）下，各自在配置里可以单独开关：
+ *   - 连线：从屏幕正中心的准心连到目标头顶的投影位置
+ *   - 方框：包围盒 8 个角投影到屏幕后取 min/max
+ *   - 骨骼：按包围盒估出关节点再连线（棍状人）
  *
- * 投影那套（矩阵抓取 + 相机空间分段处理）在 {@link ScreenProjector} 里，和 NameTags 共用。
+ * 全部是纯客户端渲染，不发包、不改服务端状态 —— 服务端装不装本 mod 都一样能用。
  *
- * 画斜线：GuiGraphics 只能画轴对齐矩形，所以 push 一个「平移到起点 + 绕 Z 轴旋转到线的方向」
- * 的 PoseStack，在局部坐标里画一个「长度 x 线宽」的矩形。
+ * 投影那套（矩阵抓取 + 相机空间分段处理）在 {@link ScreenProjector} 里，和 NameTags 共用；
+ * 具体怎么画在 {@link EspRenderer} 里。
  *
- * 全部参数（开关 / 距离 / 颜色 / 线宽 / 是否画生物 / 血量）走 Cloth Config，
- * 键位默认 J，可在原版按键设置里改。
+ * 所有参数走 Cloth Config，键位默认 J，可在原版按键设置里改。
  */
 @Mod.EventBusSubscriber(modid = "taczhacker", value = Dist.CLIENT)
 public class PlayerEspHandler {
@@ -50,16 +48,28 @@ public class PlayerEspHandler {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
-        if (!HackConfig.globalEnabled || !HackConfig.espEnabled) {
+        if (!HackConfig.globalEnabled) {
             espActive = false;
             return;
         }
 
         boolean keyDown = KeyBindings.ESP_KEY.isDown();
         if (keyDown && !wasKeyDown) {
-            espActive = !espActive;
+            if (!HackConfig.espEnabled) {
+                // 配置关着时按键也要有反应：按一次直接打开配置并显示
+                HackConfig.espEnabled = true;
+                HackConfig.save();
+                espActive = true;
+            } else {
+                espActive = !espActive;
+            }
         }
         wasKeyDown = keyDown;
+
+        // 配置被外部关掉时强制复位
+        if (!HackConfig.espEnabled) {
+            espActive = false;
+        }
     }
 
     public static boolean isEspActive() {
@@ -92,77 +102,32 @@ public class PlayerEspHandler {
             if (entity instanceof Player) {
                 // 玩家一律画
             } else if (HackConfig.espIncludeMobs && entity instanceof LivingEntity) {
-                // 开了「也给生物画线」才画
+                // 开了「也给生物画」才画
             } else {
                 continue;
             }
 
             if (self.distanceToSqr(entity) > maxDistanceSq) continue;
 
-            // 瞄 bounding box 顶端（正好头顶）。以前多加了 0.2，线看着会浮在头上
-            Vec3 head = new Vec3(entity.getX(), entity.getBoundingBox().maxY, entity.getZ());
-            float[] screen = ScreenProjector.project(head);
-            if (screen == null) continue;
+            if (HackConfig.espDrawLine) {
+                // 瞄 bounding box 顶端（正好头顶）。以前多加了 0.2，线看着会浮在头上
+                Vec3 head = new Vec3(entity.getX(), entity.getBoundingBox().maxY, entity.getZ());
+                float[] screen = ScreenProjector.project(head);
+                if (screen != null) {
+                    EspRenderer.drawLine(graphics, centerX, centerY, screen[0], screen[1], color, lineWidth);
+                }
+            }
 
-            drawLine(graphics, centerX, centerY, screen[0], screen[1], color, lineWidth);
+            // 方框和骨骼要求位置准确，相机平面之后的目标投影只剩方向是对的，直接跳过
+            boolean inFront = ScreenProjector.isInFront(entity.getBoundingBox().getCenter());
 
-            if (HackConfig.espShowHealth && entity instanceof LivingEntity living) {
-                drawHealth(graphics, mc, screen[0], screen[1], living);
+            if (HackConfig.espDrawBox && inFront) {
+                EspRenderer.drawBox(graphics, entity.getBoundingBox(), color, lineWidth);
+            }
+
+            if (HackConfig.espDrawSkeleton && inFront && entity instanceof LivingEntity living) {
+                EspRenderer.drawSkeleton(graphics, living, color, lineWidth);
             }
         }
-    }
-
-    /**
-     * 在目标头顶（线的末端）画血量文字
-     *
-     * 数据来源是客户端拿到的实体血量。参考 FDPClient 的 NameTags：
-     * 有些服务器根本不把实体血量同步给客户端，那边会退化成读记分板的 health objective
-     * （而且只对玩家有效）。这里先用最直接的方式。
-     */
-    private static void drawHealth(GuiGraphics graphics, Minecraft mc, float screenX, float screenY,
-                                    LivingEntity living) {
-        int maxHealth = Mth.ceil(living.getMaxHealth());
-        if (maxHealth <= 0) return;
-
-        int health = Mth.ceil(living.getHealth());
-        String text = health + "/" + maxHealth;
-
-        float ratio = (float) health / (float) maxHealth;
-        int color;
-        if (ratio > 0.66F) {
-            color = 0xFF55FF55;   // 绿
-        } else if (ratio > 0.33F) {
-            color = 0xFFFFFF55;   // 黄
-        } else {
-            color = 0xFFFF5555;   // 红
-        }
-
-        int textX = Math.round(screenX) - mc.font.width(text) / 2;
-        int textY = Math.round(screenY) - mc.font.lineHeight - 1;
-        graphics.drawString(mc.font, text, textX, textY, color, true);
-    }
-
-    /**
-     * 在 GUI 上画一条任意方向的线
-     *
-     * GuiGraphics#fill 只能画轴对齐矩形，所以先把坐标系平移到起点、旋转到线的方向，
-     * 再画一个「长度 x 线宽」的矩形。
-     */
-    private static void drawLine(GuiGraphics graphics, float x1, float y1, float x2, float y2,
-                                 int color, float width) {
-        float dx = x2 - x1;
-        float dy = y2 - y1;
-        float length = Mth.sqrt(dx * dx + dy * dy);
-        if (length < 1.0F) return;
-
-        int len = Math.max(1, Math.round(length));
-        int thick = Math.max(1, Math.round(width));
-
-        PoseStack pose = graphics.pose();
-        pose.pushPose();
-        pose.translate(x1, y1, 0.0F);
-        pose.mulPose(Axis.ZP.rotation((float) Mth.atan2(dy, dx)));
-        graphics.fill(0, 0, len, thick, color);
-        pose.popPose();
     }
 }

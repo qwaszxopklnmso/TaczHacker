@@ -59,16 +59,29 @@ public class NameTagsHandler {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
-        if (!HackConfig.globalEnabled || !HackConfig.nameTagsEnabled) {
+        if (!HackConfig.globalEnabled) {
             active = false;
             return;
         }
 
         boolean keyDown = KeyBindings.NAMETAGS_KEY.isDown();
         if (keyDown && !wasKeyDown) {
-            active = !active;
+            if (!HackConfig.nameTagsEnabled) {
+                // 配置里总开关是关的：按一次就把它打开并直接显示。
+                // 否则按键被配置静默吞掉，用户只会看到「按了没反应」
+                HackConfig.nameTagsEnabled = true;
+                HackConfig.save();
+                active = true;
+            } else {
+                active = !active;
+            }
         }
         wasKeyDown = keyDown;
+
+        // 配置被外部关掉时强制复位
+        if (!HackConfig.nameTagsEnabled) {
+            active = false;
+        }
     }
 
     public static boolean isActive() {

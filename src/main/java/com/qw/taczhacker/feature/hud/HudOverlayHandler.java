@@ -60,8 +60,8 @@ public class HudOverlayHandler {
         // 功能7：ParCool 长滑铲（运行时状态在 ParCool 内部，这里显示功能开关）
         entries.add(new Entry("长滑铲", () -> HackConfig.parcoolLongSlideEnabled,
                 () -> ParCoolLongSlide.isForcing()));
-        // 功能8：玩家 ESP（按 J 切换）
-        entries.add(new Entry("玩家ESP", () -> HackConfig.espEnabled,
+        // 功能8：ESP（连线/方框/骨骼/发光，按 J 切换）
+        entries.add(new Entry("ESP", () -> HackConfig.espEnabled,
                 () -> PlayerEspHandler.isEspActive()));
         // 功能9：实体信息牌（按 K 切换）
         entries.add(new Entry("信息牌", () -> HackConfig.nameTagsEnabled,

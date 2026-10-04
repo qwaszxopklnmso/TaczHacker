@@ -16,8 +16,9 @@
 | 飞行挂 | G | 自由飞行，支持开关/按住两种模式 |
 | 全亮（Fullbright） | B | 强制最大亮度，关闭时自动恢复 |
 | ParCool 长滑铲 | 起滑 C；退出 跳跃键 / Z | 滑铲不自动结束、方向跟随视角、不消耗体力（需 ParCool） |
-| 玩家 ESP | J | 从屏幕准心向目标头顶画线，可附带显示血量 |
+| ESP | J | 准心连线 / 方框 / 骨骼，可在配置里分别开关 |
 | 实体信息牌 | K | 目标头顶显示名字 / 血量 / 距离 / 血条 |
+| 无后坐力（Tacz） | 配置项开关 | 去掉开火时画面的上跳，纯客户端 |
 
 注：都可以在cloth config api的模组设置中关闭
 
@@ -62,7 +63,10 @@ gradle installToMods
 - 部分功能（追踪弹、穿墙子弹）**仅单机/双端都装mod有效**
 - 功能7 长滑铲要装的 **ParCool 本体联机时必须两端都装**（ParCool 自己没写 `displayTest`，Forge 会拒绝连接）
 - 无限体力、长滑铲判定都在客户端跑，**本 mod 不用装在服务端**
-- 功能8 玩家 ESP 是纯客户端渲染（只画线，不发包），服务端装不装都一样
+- 功能8 ESP 是纯客户端渲染（连线 / 方框 / 骨骼都不发包），服务端装不装都一样
+- 无后坐力只去掉**画面**的上跳：Tacz 的后坐力是渲染层的摄像机偏移，本来就不影响弹道
+- **无扩散做不到**：Tacz 的子弹散布是服务端生成子弹时算的（`ModernKineticGunItem.doBulletSpread`），
+  客户端发出去的 `ClientMessagePlayerShoot` 里只有 timestamp 和 chargeProgress，连方向都不带
 - 飞行挂请在无反作弊服务器使用
 
 ## 致谢与来源说明
@@ -70,7 +74,7 @@ gradle installToMods
 功能 8（玩家 ESP）和功能 9（实体信息牌）在设计与实现时参考了
 [FDPClient](https://github.com/SkidderMC/FDPClient)（GPL-3.0）的做法：
 
-- **玩家 ESP**：从渲染管线直接取 view / projection 矩阵，而不是自己拼相机旋转
+- **ESP 投影**：从渲染管线直接取 view / projection 矩阵，而不是自己拼相机旋转
 - **实体信息牌**：标签内容的组织方式（名字 / 血量 / 血条 / 距离）
 - **实体血量**：FDPClient 提供的 `HealthFromScoreboard` 只对玩家生效
   （原版 `health` criteria 本身就不追踪生物），因此没有采用

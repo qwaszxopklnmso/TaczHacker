@@ -328,25 +328,36 @@ public class ConfigScreen {
         espCat.addEntry(e.startDoubleField(
                 Component.literal("线条粗细（像素）"),
                 HackConfig.espLineWidth
-        ).setTooltip(Component.literal("1 最细，建议 1~3。"))
-                .setMin(0.5).setMax(6.0)
+        ).setTooltip(Component.literal("1 最细，建议 1~3。\n"
+                + "小于 1 的数值画不出真的亚像素线（GUI 矩形最小就是 1 像素），\n"
+                + "会改用「1 像素 + 按比例降低不透明度」来模拟，看着比实心 1 像素轻。"))
+                .setMin(0.1).setMax(6.0)
                 .setSaveConsumer(v -> HackConfig.espLineWidth = v)
                 .build());
         espCat.addEntry(e.startBooleanToggle(
-                Component.literal("也给生物画线"),
+                Component.literal("也给生物画"),
                 HackConfig.espIncludeMobs
         ).setTooltip(Component.literal("默认只画玩家；开启后僵尸、动物这些也会画。"))
                 .setSaveConsumer(v -> HackConfig.espIncludeMobs = v)
                 .build());
         espCat.addEntry(e.startBooleanToggle(
-                Component.literal("显示血量"),
-                HackConfig.espShowHealth
-        ).setTooltip(Component.literal("在目标头顶（线的末端）显示「当前/最大」血量。\n"
-                + "颜色随血量比例变：绿 → 黄 → 红。\n"
-                + "注意：有些服务器不把实体血量同步给客户端，那种情况下会一直显示 0。"))
-                .setSaveConsumer(v -> HackConfig.espShowHealth = v)
+                Component.literal("准心连线"),
+                HackConfig.espDrawLine
+        ).setTooltip(Component.literal("从屏幕中心的准心连到目标头顶。"))
+                .setSaveConsumer(v -> HackConfig.espDrawLine = v)
                 .build());
-
+        espCat.addEntry(e.startBooleanToggle(
+                Component.literal("方框"),
+                HackConfig.espDrawBox
+        ).setTooltip(Component.literal("在目标周围画一个 2D 包围盒。"))
+                .setSaveConsumer(v -> HackConfig.espDrawBox = v)
+                .build());
+        espCat.addEntry(e.startBooleanToggle(
+                Component.literal("骨骼"),
+                HackConfig.espDrawSkeleton
+        ).setTooltip(Component.literal("头 / 脖子 / 胯 / 四肢的连线，会跟着目标转身。"))
+                .setSaveConsumer(v -> HackConfig.espDrawSkeleton = v)
+                .build());
         // ============================================================
         // 功能9：实体信息牌（NameTags）
         // ============================================================
@@ -426,6 +437,19 @@ public class ConfigScreen {
                 HackConfig.nameTagsBackground
         ).setTooltip(Component.literal("半透明黑底，远处或者亮背景下也看得清。"))
                 .setSaveConsumer(v -> HackConfig.nameTagsBackground = v)
+                .build());
+
+        // 附加功能
+        ConfigCategory miscCat = builder.getOrCreateCategory(Component.literal("附加功能"));
+        miscCat.addEntry(e.startBooleanToggle(
+                Component.literal("无后坐力（Tacz）"),
+                HackConfig.taczNoRecoil
+        ).setTooltip(Component.literal("去掉开火时画面的上跳。\n"
+                + "Tacz 的后坐力是纯渲染的摄像机偏移，**不影响弹道**，\n"
+                + "所以这个开关只是让枪不抖，不是让子弹变准。\n"
+                + "纯客户端，服务端察觉不到。\n"
+                + "（无扩散做不到：散布是服务端生成子弹时算的）"))
+                .setSaveConsumer(v -> HackConfig.taczNoRecoil = v)
                 .build());
 
         // 保存回调：用户点击"保存并退出"时持久化配置

@@ -73,14 +73,8 @@ public final class ScreenProjector {
     public static float[] project(Vec3 worldPos) {
         if (!frameValid) return null;
 
-        // 抓下来的 view 矩阵是「相机相对」的，先减相机位置
-        float relativeX = (float) (worldPos.x - frameCamX);
-        float relativeY = (float) (worldPos.y - frameCamY);
-        float relativeZ = (float) (worldPos.z - frameCamZ);
-
         // 转到相机空间（相机朝 -Z 看）
-        Vector4f eye = new Vector4f(relativeX, relativeY, relativeZ, 1.0F);
-        eye.mul(FRAME_MODELVIEW);
+        Vector4f eye = toCameraSpace(worldPos);
 
         float ndcX;
         float ndcY;
@@ -111,6 +105,32 @@ public final class ScreenProjector {
         float screenX = (ndcX * 0.5F + 0.5F) * screenW;
         float screenY = (-ndcY * 0.5F + 0.5F) * screenH;
         return new float[]{screenX, screenY};
+    }
+
+    /**
+     * 世界坐标 → 相机空间坐标（相机朝 -Z 看，z 越小越靠前）
+     *
+     * 抓下来的 view 矩阵是「相机相对」的，所以输入要先减相机位置。
+     */
+    private static Vector4f toCameraSpace(Vec3 worldPos) {
+        float relativeX = (float) (worldPos.x - frameCamX);
+        float relativeY = (float) (worldPos.y - frameCamY);
+        float relativeZ = (float) (worldPos.z - frameCamZ);
+
+        Vector4f eye = new Vector4f(relativeX, relativeY, relativeZ, 1.0F);
+        eye.mul(FRAME_MODELVIEW);
+        return eye;
+    }
+
+    /**
+     * 目标是不是在相机前方
+     *
+     * 相机平面之后的点，投影出来只有方向是对的（大小是硬放大的），
+     * 所以画方框 / 骨骼这类「要求位置精确」的东西之前先用这个挡掉。
+     */
+    public static boolean isInFront(Vec3 worldPos) {
+        if (!frameValid) return false;
+        return toCameraSpace(worldPos).z < FRONT_Z_THRESHOLD;
     }
 
     public static float screenWidth() {

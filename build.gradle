@@ -155,7 +155,7 @@ tasks.named('jar', Jar).configure {
                 "Implementation-Version"  : project.jar.archiveVersion,
                 "Implementation-Vendor"   : mod_authors,
                 "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
-                "MixinConfigs"            : "taczhacker.mixins.json,taczhacker.embeddium.mixins.json,taczhacker.parcool.mixins.json"
+                "MixinConfigs"            : "taczhacker.mixins.json,taczhacker.tacz.mixins.json,taczhacker.embeddium.mixins.json,taczhacker.parcool.mixins.json"
         ])
     }
 

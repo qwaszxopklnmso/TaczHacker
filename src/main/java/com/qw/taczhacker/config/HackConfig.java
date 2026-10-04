@@ -257,21 +257,25 @@ public class HackConfig {
 
     private static final ForgeConfigSpec.DoubleValue ESP_LINE_WIDTH = BUILDER
             .comment("ESP 线条粗细（像素）", "ESP line width in pixels")
-            .defineInRange("esp.lineWidth", 1.5, 0.5, 6.0);
+            .defineInRange("esp.lineWidth", 1.0, 0.1, 6.0);
 
     private static final ForgeConfigSpec.BooleanValue ESP_INCLUDE_MOBS = BUILDER
-            .comment("是否也给非玩家生物画线（默认只画玩家）",
-                    "Also draw lines to non-player living entities")
+            .comment("是否也给非玩家生物画（默认只画玩家）",
+                    "Also draw for non-player living entities")
             .define("esp.includeMobs", false);
 
-    private static final ForgeConfigSpec.BooleanValue ESP_SHOW_HEALTH = BUILDER
-            .comment("在目标头顶（线的末端）显示血量，格式「当前/最大」，颜色按血量比例变。\n"
-                    + "参考 FDPClient 的 NameTags：有些服务器不把实体血量同步给客户端，\n"
-                    + "那种情况下这里会一直显示 0，属于服务端行为，不是本功能的问题。",
-                    "Show the target's health (current/max) at the end of the line, "
-                    + "colored by health ratio. Note: some servers do not sync entity health to clients, "
-                    + "in which case it will always read 0.")
-            .define("esp.showHealth", true);
+    private static final ForgeConfigSpec.BooleanValue ESP_DRAW_LINE = BUILDER
+            .comment("从屏幕准心向目标头顶画线", "Draw a line from the crosshair to the target")
+            .define("esp.drawLine", true);
+
+    private static final ForgeConfigSpec.BooleanValue ESP_DRAW_BOX = BUILDER
+            .comment("画 2D 包围盒（方框）", "Draw a 2D bounding box")
+            .define("esp.drawBox", true);
+
+    private static final ForgeConfigSpec.BooleanValue ESP_DRAW_SKELETON = BUILDER
+            .comment("画骨骼（头 / 脖子 / 胯 / 四肢的连线）",
+                    "Draw a stick-figure skeleton")
+            .define("esp.drawSkeleton", true);
 
     // ============================================================
     // 功能9：实体信息牌（NameTags）
@@ -281,7 +285,7 @@ public class HackConfig {
                     + "按键切换（默认 K），纯客户端渲染，不发包。",
                     "NameTags master switch. Shows name / health / distance / bar above entities. "
                     + "Toggle with the bound key (default K). Pure client side.")
-            .define("nametags.enabled", false);
+            .define("nametags.enabled", true);
 
     private static final ForgeConfigSpec.DoubleValue NAMETAGS_MAX_DISTANCE = BUILDER
             .comment("最远显示距离（格）", "Max render distance in blocks")
@@ -329,6 +333,18 @@ public class HackConfig {
     private static final ForgeConfigSpec.BooleanValue NAMETAGS_BACKGROUND = BUILDER
             .comment("文字加半透明黑底，远处也看得清", "Draw a translucent background behind the text")
             .define("nametags.background", true);
+
+    // ============================================================
+    // 附加功能：Tacz 无后坐力
+    // ============================================================
+    private static final ForgeConfigSpec.BooleanValue TACZ_NO_RECOIL = BUILDER
+            .comment("去掉 Tacz 开火时的后坐力（画面不跳）。\n"
+                    + "Tacz 的后坐力是纯渲染的摄像机偏移（ViewportEvent.ComputeCameraAngles），\n"
+                    + "**不影响弹道**：子弹方向一直是用玩家的实际旋转算的。\n"
+                    + "所以这个开关的效果是「枪不再抖」，不是「子弹变准」，而且纯客户端，服务端察觉不到。",
+                    "Remove Tacz's visual camera recoil. It is a render-only camera offset and does not "
+                    + "affect bullet direction. Client side only.")
+            .define("tacz.noRecoil", true);
 
     // ============================================================
     // 构建 SPEC
@@ -409,7 +425,9 @@ public class HackConfig {
         ESP_COLOR.set(espColor);
         ESP_LINE_WIDTH.set(espLineWidth);
         ESP_INCLUDE_MOBS.set(espIncludeMobs);
-        ESP_SHOW_HEALTH.set(espShowHealth);
+        ESP_DRAW_LINE.set(espDrawLine);
+        ESP_DRAW_BOX.set(espDrawBox);
+        ESP_DRAW_SKELETON.set(espDrawSkeleton);
 
         // 功能9
         NAMETAGS_ENABLED.set(nameTagsEnabled);
@@ -424,6 +442,9 @@ public class HackConfig {
         NAMETAGS_BAR_WIDTH.set(nameTagsBarWidth);
         NAMETAGS_SCALE.set(nameTagsScale);
         NAMETAGS_BACKGROUND.set(nameTagsBackground);
+
+        // 附加：Tacz 无后坐力
+        TACZ_NO_RECOIL.set(taczNoRecoil);
 
         // 写入文件
         modConfig.save();
@@ -495,7 +516,9 @@ public class HackConfig {
     public static int espColor;
     public static double espLineWidth;
     public static boolean espIncludeMobs;
-    public static boolean espShowHealth;
+    public static boolean espDrawLine;
+    public static boolean espDrawBox;
+    public static boolean espDrawSkeleton;
 
     // 功能9：实体信息牌
     public static boolean nameTagsEnabled;
@@ -510,6 +533,9 @@ public class HackConfig {
     public static int nameTagsBarWidth;
     public static double nameTagsScale;
     public static boolean nameTagsBackground;
+
+    // 附加：Tacz 无后坐力
+    public static boolean taczNoRecoil;
 
     /**
      * 配置变更时刷新缓存
@@ -586,7 +612,9 @@ public class HackConfig {
             espColor = ESP_COLOR.get() & 0xFFFFFF;
             espLineWidth = ESP_LINE_WIDTH.get();
             espIncludeMobs = ESP_INCLUDE_MOBS.get();
-            espShowHealth = ESP_SHOW_HEALTH.get();
+            espDrawLine = ESP_DRAW_LINE.get();
+            espDrawBox = ESP_DRAW_BOX.get();
+            espDrawSkeleton = ESP_DRAW_SKELETON.get();
 
             // 功能9
             nameTagsEnabled = NAMETAGS_ENABLED.get();
@@ -601,6 +629,9 @@ public class HackConfig {
             nameTagsBarWidth = NAMETAGS_BAR_WIDTH.get();
             nameTagsScale = NAMETAGS_SCALE.get();
             nameTagsBackground = NAMETAGS_BACKGROUND.get();
+
+            // 附加：Tacz 无后坐力
+            taczNoRecoil = TACZ_NO_RECOIL.get();
 
             LOGGER.debug("TaczHacker 配置已刷新");
         }
