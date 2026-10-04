@@ -82,4 +82,9 @@ FDPClient 是 Kotlin 项目、走 GLU 风格的 `project()`；本项目的对应
 
 本项目采用 MIT 许可证，见 [LICENSE](LICENSE)。
 
-> 本节，以及上述功能 8、功能 9 的实现，由 **deepseekv4.1flash** 编写。
+> 本项目的代码由 AI 编写，人机分工大致是：
+>
+> - **deepseek-flash**：实现功能、修 bug、写文档
+> - **qwaszxopklnm**：提出需求、决定功能取舍与优先级、发现并报告问题、验证结果
+>
+> 模型版本：v1.0.1 及以前用 v4-flash，v1.1.0 及以后用 v4.1-flash。
