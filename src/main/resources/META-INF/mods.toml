@@ -9,6 +9,10 @@ displayName = "${mod_name}"
 authors = "${mod_authors}"
 description = "${mod_description}"
 properties = { }
+# 本 mod 以纯客户端为主：服务器不装也能进，只是拿不到服务端能力位（追踪弹/穿墙子弹失效）。
+# 不写这行的话 Forge 走默认的 MATCH_VERSION，服务端没装本 mod 会直接红 X 拒绝连接。
+# 协议兼容性由 SimpleChannel 的协议版本（Taczhacker.PROTOCOL_VERSION）单独保证。
+displayTest = "IGNORE_ALL_VERSION"
 accessTransformers = "accesstransformer.cfg"
 mixinConfigs = "taczhacker.mixins.json,taczhacker.embeddium.mixins.json,taczhacker.parcool.mixins.json"
 

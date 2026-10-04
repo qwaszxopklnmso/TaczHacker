@@ -54,5 +54,8 @@ gradle installToMods
 
 ## 注意事项
 
+- 本 mod 是**纯客户端为主**：服务器不装也能进（`displayTest="IGNORE_ALL_VERSION"`）
 - 部分功能（追踪弹、穿墙子弹）**仅单机/双端都装mod有效**
+- 功能7 长滑铲要装的 **ParCool 本体联机时必须两端都装**（ParCool 自己没写 `displayTest`，Forge 会拒绝连接）
+- 无限体力、长滑铲判定都在客户端跑，**本 mod 不用装在服务端**
 - 飞行挂请在无反作弊服务器使用

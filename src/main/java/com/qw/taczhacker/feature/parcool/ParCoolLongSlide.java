@@ -22,7 +22,10 @@ import com.qw.taczhacker.config.HackConfig;
  *   2. 松开后再按一次滑铲键（ParCool 的爬行键）
  *   3. 按本 mod 的「取消长滑铲」键（默认 Z）
  *
- * 客户端与服务端都会执行这段判定，所以两端都要装 ParCool + 本 mod 才有效。
+ * 这些判定（canStart / canContinue / 体力 consume）在 ParCool 里全部包在
+ * player.isLocalPlayer() 分支里，**只有客户端会跑**；服务端玩家 isLocalPlayer()
+ * 恒为 false。所以本 mod 只要客户端装就够了，ParCool 自己会把动作状态同步过去。
+ * （ParCool 本体因为 mods.toml 没写 displayTest，联机时两端仍都必须装。）
  * 按键只有客户端读得到，因此强制持续的判定加了 isClientSide 守卫：
  * 客户端一旦不再强制，canContinue 返回 false，ParCool 自己会把
  * 结束状态同步给服务端（服务端跟随客户端，不会出现脱节）。
