@@ -338,6 +338,14 @@ public class ConfigScreen {
         ).setTooltip(Component.literal("默认只画玩家；开启后僵尸、动物这些也会画。"))
                 .setSaveConsumer(v -> HackConfig.espIncludeMobs = v)
                 .build());
+        espCat.addEntry(e.startBooleanToggle(
+                Component.literal("显示血量"),
+                HackConfig.espShowHealth
+        ).setTooltip(Component.literal("在目标头顶（线的末端）显示「当前/最大」血量。\n"
+                + "颜色随血量比例变：绿 → 黄 → 红。\n"
+                + "注意：有些服务器不把实体血量同步给客户端，那种情况下会一直显示 0。"))
+                .setSaveConsumer(v -> HackConfig.espShowHealth = v)
+                .build());
 
         // 保存回调：用户点击"保存并退出"时持久化配置
         builder.setSavingRunnable(() -> {

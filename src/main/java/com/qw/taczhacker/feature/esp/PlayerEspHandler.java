@@ -5,6 +5,7 @@ import com.mojang.math.Axis;
 import com.qw.taczhacker.config.HackConfig;
 import com.qw.taczhacker.keybind.KeyBindings;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
@@ -136,6 +137,10 @@ public class PlayerEspHandler {
             Vec3 head = new Vec3(entity.getX(), entity.getBoundingBox().maxY, entity.getZ());
             float[] screen = worldToScreen(mc, head);
             drawLine(graphics, centerX, centerY, screen[0], screen[1], color, lineWidth);
+
+            if (HackConfig.espShowHealth && entity instanceof LivingEntity living) {
+                drawHealth(graphics, mc, screen[0], screen[1], living);
+            }
         }
     }
 
@@ -183,6 +188,37 @@ public class PlayerEspHandler {
         screenY = Mth.clamp(screenY, -marginY, screenH + marginY);
 
         return new float[]{screenX, screenY};
+    }
+
+    /**
+     * 在目标头顶（线的末端）画血量文字
+     *
+     * 数据来源是客户端拿到的实体血量。参考 FDPClient 的 NameTags：
+     * 有些服务器根本不把实体血量同步给客户端，那边会退化成读记分板的 health objective。
+     * 这里先用最直接的方式，读不到就显示 0。
+     */
+    private static void drawHealth(GuiGraphics graphics, Minecraft mc, float screenX, float screenY,
+                                    LivingEntity living) {
+        int maxHealth = Mth.ceil(living.getMaxHealth());
+        if (maxHealth <= 0) return;
+
+        int health = Mth.ceil(living.getHealth());
+        String text = health + "/" + maxHealth;
+
+        float ratio = (float) health / (float) maxHealth;
+        int color;
+        if (ratio > 0.66F) {
+            color = 0xFF55FF55;   // 绿
+        } else if (ratio > 0.33F) {
+            color = 0xFFFFFF55;   // 黄
+        } else {
+            color = 0xFFFF5555;   // 红
+        }
+
+        Font font = mc.font;
+        int textX = Math.round(screenX) - font.width(text) / 2;
+        int textY = Math.round(screenY) - font.lineHeight - 1;
+        graphics.drawString(font, text, textX, textY, color, true);
     }
 
     /**

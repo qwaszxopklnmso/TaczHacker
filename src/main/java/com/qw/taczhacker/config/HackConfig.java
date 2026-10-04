@@ -264,6 +264,15 @@ public class HackConfig {
                     "Also draw lines to non-player living entities")
             .define("esp.includeMobs", false);
 
+    private static final ForgeConfigSpec.BooleanValue ESP_SHOW_HEALTH = BUILDER
+            .comment("在目标头顶（线的末端）显示血量，格式「当前/最大」，颜色按血量比例变。\n"
+                    + "参考 FDPClient 的 NameTags：有些服务器不把实体血量同步给客户端，\n"
+                    + "那种情况下这里会一直显示 0，属于服务端行为，不是本功能的问题。",
+                    "Show the target's health (current/max) at the end of the line, "
+                    + "colored by health ratio. Note: some servers do not sync entity health to clients, "
+                    + "in which case it will always read 0.")
+            .define("esp.showHealth", true);
+
     // ============================================================
     // 构建 SPEC
     // ============================================================
@@ -343,6 +352,7 @@ public class HackConfig {
         ESP_COLOR.set(espColor);
         ESP_LINE_WIDTH.set(espLineWidth);
         ESP_INCLUDE_MOBS.set(espIncludeMobs);
+        ESP_SHOW_HEALTH.set(espShowHealth);
 
         // 写入文件
         modConfig.save();
@@ -414,6 +424,7 @@ public class HackConfig {
     public static int espColor;
     public static double espLineWidth;
     public static boolean espIncludeMobs;
+    public static boolean espShowHealth;
 
     /**
      * 配置变更时刷新缓存
@@ -490,6 +501,7 @@ public class HackConfig {
             espColor = ESP_COLOR.get() & 0xFFFFFF;
             espLineWidth = ESP_LINE_WIDTH.get();
             espIncludeMobs = ESP_INCLUDE_MOBS.get();
+            espShowHealth = ESP_SHOW_HEALTH.get();
 
             LOGGER.debug("TaczHacker 配置已刷新");
         }
