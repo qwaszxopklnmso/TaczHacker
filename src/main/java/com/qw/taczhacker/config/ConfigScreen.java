@@ -50,6 +50,16 @@ public class ConfigScreen {
         ).setTooltip(Component.literal("开火时自动瞄准最近目标"))
                 .setSaveConsumer(v -> HackConfig.aimEnabled = v)
                 .build());
+        aimCat.addEntry(e.startBooleanToggle(
+                Component.literal("静默开镜"),
+                HackConfig.aimSilentScope
+        ).setTooltip(Component.literal("开火时偷偷让服务端以为你在瞄准，散布按瞄准档算。\n"
+                + "只发 Tacz 的 aim 包，本地不进入瞄准状态 ——\n"
+                + "自己画面不会开镜、准星不缩放、FOV 不变，但别人看得到你在瞄准。\n"
+                + "停火 1 秒后自动关镜；连发期间一直保持。\n"
+                + "开了穿墙子弹或追踪弹时不生效。"))
+                .setSaveConsumer(v -> HackConfig.aimSilentScope = v)
+                .build());
         aimCat.addEntry(e.startDoubleField(
                 Component.literal("锁定半径（格）"),
                 HackConfig.aimLockRadius

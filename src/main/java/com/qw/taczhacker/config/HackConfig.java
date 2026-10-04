@@ -34,6 +34,16 @@ public class HackConfig {
             .comment("功能1：开火静默自瞄总开关", "Silent aim master switch")
             .define("aim.enabled", false);
 
+    private static final ForgeConfigSpec.BooleanValue AIM_SILENT_SCOPE = BUILDER
+            .comment("静默开镜：开火时偷偷让服务端以为你在瞄准，散布按 Tacz 的瞄准档算。\n"
+                    + "只发 Tacz 的 aim 包，**本地不进入瞄准状态** —— 自己画面不会开镜、准星不缩放、FOV 不变，\n"
+                    + "但服务端和别人的客户端会看到你在瞄准。\n"
+                    + "停火 1 秒后自动关镜；连发期间一直保持，每次交战只多 2 个包。\n"
+                    + "开了「穿墙子弹」或「追踪弹」时不生效（那两个本来就是服务端功能）。",
+                    "Silent scope: send Tacz's aim packet so the server thinks you are aiming "
+                    + "(lower spread) while your own view stays hip-fire. Client side only.")
+            .define("aim.silentScope", true);
+
     private static final ForgeConfigSpec.DoubleValue AIM_LOCK_RADIUS = BUILDER
             .comment("锁定半径（格）", "Lock radius in blocks")
             .defineInRange("aim.lockRadius", 64.0, 1.0, 256.0);
@@ -386,6 +396,7 @@ public class HackConfig {
 
         // 功能1
         AIM_ENABLED.set(aimEnabled);
+        AIM_SILENT_SCOPE.set(aimSilentScope);
         AIM_LOCK_RADIUS.set(aimLockRadius);
         AIM_CONE_ANGLE.set(aimConeAngle);
         AIM_PREDICTION_FACTOR.set(aimPredictionFactor);
@@ -477,6 +488,7 @@ public class HackConfig {
 
     // 功能1
     public static boolean aimEnabled;
+    public static boolean aimSilentScope;
     public static double aimLockRadius;
     public static double aimConeAngle;
     public static double aimPredictionFactor;
@@ -574,6 +586,7 @@ public class HackConfig {
 
             // 功能1
             aimEnabled = AIM_ENABLED.get();
+            aimSilentScope = AIM_SILENT_SCOPE.get();
             aimLockRadius = AIM_LOCK_RADIUS.get();
             aimConeAngle = AIM_CONE_ANGLE.get();
             aimPredictionFactor = AIM_PREDICTION_FACTOR.get();
