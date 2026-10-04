@@ -38,6 +38,16 @@ public class ServerDetector {
     private static volatile boolean serverPenetrationEnabled = false;
 
     /**
+     * 当前是否跑在集成服务器上（单人游戏 / 局域网）
+     *
+     * 这种情况下客户端和"服务端"共处同一个进程，静态字段可以直接互相传递，
+     * 服务端那边的兜底逻辑就没必要再凭空挑目标改弹道了。
+     */
+    public static boolean isIntegratedServer() {
+        return isSinglePlayer;
+    }
+
+    /**
      * 服务端是否安装了 TaczHacker mod
      *
      * - 单人游戏/局域网（集成服务器）：永远返回 true

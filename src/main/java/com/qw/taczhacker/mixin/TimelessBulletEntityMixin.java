@@ -3,6 +3,7 @@ package com.qw.taczhacker.mixin;
 import com.qw.taczhacker.config.HackConfig;
 import com.qw.taczhacker.feature.aim.AimHandler;
 import com.qw.taczhacker.feature.aim.AimHandler.AimAngles;
+import com.qw.taczhacker.network.ServerDetector;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.Projectile;
@@ -143,6 +144,15 @@ public class TimelessBulletEntityMixin {
         // 只做「修正」而不是「凭空转向」：如果子弹当前飞行方向与目标方向的夹角
         // 超过配置的追踪锥角，说明这一枪本来就不是冲着目标去的（例如对天开枪、
         // 打墙、霰弹枪的多余弹丸），此时保持原方向，避免子弹诡异拐弯打到路人。
+        //
+        // 单机 / 局域网直接跳过：集成服务器跟客户端同进程，角度递不过来只说明这一枪
+        // 没选中目标（或者连发时被前一颗取空了），这时候再凭空挑个"最近的生物"
+        // 改弹道，纯粹是帮倒忙。只有连专用服务器才需要它 —— 那边跨 JVM，
+        // pendingAngles 永远读不到，服务端自选目标是唯一手段。
+        if (ServerDetector.isIntegratedServer()) {
+            return;
+        }
+
         if (self.getOwner() instanceof LivingEntity shooter) {
             LivingEntity target = AimHandler.selectTargetServerSide(shooter);
             if (target != null && target.isAlive()) {
@@ -204,6 +214,14 @@ public class TimelessBulletEntityMixin {
     private void onBulletTick(CallbackInfo ci) {
         // 检查总开关
         if (!HackConfig.globalEnabled || !HackConfig.aimEnabled) {
+            return;
+        }
+
+        // 每 tick 掰弹道属于「追踪弹」的行为，没开就别插手。
+        // 否则子弹飞出枪口后，路过任何生物身边都会被 selectTargetNear 拽过去 ——
+        // 那个方法是以子弹位置为圆心、按距离挑最近的，完全不看玩家的准星，
+        // 连发时表现为整条弹链乱飞。
+        if (!HackConfig.aimSinglePlayerHomingBullet) {
             return;
         }
 
