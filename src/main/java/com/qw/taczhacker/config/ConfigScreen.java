@@ -321,9 +321,9 @@ public class ConfigScreen {
                 HackConfig.espColor
         ).setAlphaMode(false)  // 只要 #RRGGBB 六位，不要 alpha
                 .setTooltip(Component.literal("填 #RRGGBB 六位十六进制。\n"
-                        + "线条始终不透明，所以不需要 alpha 通道（存的时候会强制补上 FF）。"))
-                .setDefaultValue(0xFF00FF00)
-                .setSaveConsumer(v -> HackConfig.espColor = v | 0xFF000000)
+                        + "线条始终不透明，不需要 alpha 通道。"))
+                .setDefaultValue(0x0000FF00)
+                .setSaveConsumer(v -> HackConfig.espColor = v & 0xFFFFFF)
                 .build());
         espCat.addEntry(e.startDoubleField(
                 Component.literal("线条粗细（像素）"),

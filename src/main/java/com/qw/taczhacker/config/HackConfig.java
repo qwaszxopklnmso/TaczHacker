@@ -242,11 +242,18 @@ public class HackConfig {
             .defineInRange("esp.maxDistance", 128.0, 8.0, 512.0);
 
     private static final ForgeConfigSpec.IntValue ESP_COLOR = BUILDER
-            .comment("ESP 线条颜色（不透明）。配置界面里填 #RRGGBB 六位十六进制，\n"
-                    + "存到本文件里是带 FF alpha 的十进制整数。",
-                    "ESP line color (opaque). Enter #RRGGBB hex in the config screen; "
-                    + "stored here as a decimal int with FF alpha.")
-            .defineInRange("esp.color", 0xFF00FF00, Integer.MIN_VALUE, Integer.MAX_VALUE);
+            .comment("ESP 线条颜色，填 #RRGGBB 六位十六进制对应的十进制值（0 ~ 0xFFFFFF）。\n"
+                    + "**不要带 alpha 字节**：Cloth Config 的颜色控件在无 alpha 模式下\n"
+                    + "要求恰好 6 位 hex，值里出现 alpha 字节它会显示成 8 位并报「不允许Alpha值！」。\n"
+                    + "线条永远不透明，alpha 在渲染时补。\n"
+                    + "范围放宽到 int 全域只是为了兼容老版本留下的带 alpha 的旧值，\n"
+                    + "读取时会自动把高字节清掉。",
+                    "ESP line color: decimal value of a #RRGGBB hex (0 ~ 0xFFFFFF). "
+                    + "Do NOT include an alpha byte, or the color widget will reject it. "
+                    + "Lines are always opaque; alpha is added at render time. "
+                    + "The wide int range only exists so old values with an alpha byte still load; "
+                    + "the high byte is stripped on read.")
+            .defineInRange("esp.color", 0x0000FF00, Integer.MIN_VALUE, Integer.MAX_VALUE);
 
     private static final ForgeConfigSpec.DoubleValue ESP_LINE_WIDTH = BUILDER
             .comment("ESP 线条粗细（像素）", "ESP line width in pixels")
@@ -477,9 +484,10 @@ public class HackConfig {
             // 功能8
             espEnabled = ESP_ENABLED.get();
             espMaxDistance = ESP_MAX_DISTANCE.get();
-            // 强制补上不透明 alpha：1.2.0 用的颜色控件带 alpha，保存过 alpha=0 的值，
-            // 读出来直接拿去画就是全透明，看起来像「ESP 完全没效果」
-            espColor = ESP_COLOR.get() | 0xFF000000;
+            // 只保留低 24 位。颜色控件在无 alpha 模式下要求恰好 6 位 hex，
+            // 值里留着 alpha 字节会显示成 8 位并报「不允许Alpha值！」。
+            // 不透明在渲染时（PlayerEspHandler）补上。
+            espColor = ESP_COLOR.get() & 0xFFFFFF;
             espLineWidth = ESP_LINE_WIDTH.get();
             espIncludeMobs = ESP_INCLUDE_MOBS.get();
 
