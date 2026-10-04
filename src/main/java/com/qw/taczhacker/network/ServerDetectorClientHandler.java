@@ -50,14 +50,20 @@ public class ServerDetectorClientHandler {
 
         // 远程服务器：发送握手包检测
         // 服务端没装本 mod 时这个通道在对面不存在（协商结果是 ABSENT），不能发，
-        // 直接按「无服务端能力」处理，功能1 继续走转视角方案
-        Connection connection = mc.getConnection() == null ? null : mc.getConnection().getConnection();
-        if (connection != null && Taczhacker.CHANNEL.isRemotePresent(connection)) {
-            Taczhacker.CHANNEL.sendToServer(new C2SHandshakePacket());
-            Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 已发送握手包到远程服务器，等待回复...");
-        } else {
+        // 直接按「无服务端能力」处理，功能1 继续走转视角方案。
+        // 整段包 try-catch：握手只是个可选增强，任何异常都不该影响进游戏。
+        try {
+            Connection connection = mc.getConnection() == null ? null : mc.getConnection().getConnection();
+            if (connection != null && Taczhacker.CHANNEL.isRemotePresent(connection)) {
+                Taczhacker.CHANNEL.sendToServer(new C2SHandshakePacket());
+                Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 已发送握手包到远程服务器，等待回复...");
+            } else {
+                ServerDetector.setServerCapabilities(false, false, false, false);
+                Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 服务端未安装本 mod（通道不存在），使用纯客户端方案");
+            }
+        } catch (Throwable t) {
             ServerDetector.setServerCapabilities(false, false, false, false);
-            Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 服务端未安装本 mod（通道不存在），使用纯客户端方案");
+            Taczhacker.LOGGER.warn("[TaczHacker][服务端检测] 握手异常，已按无服务端能力处理（不影响游戏）", t);
         }
     }
 

@@ -4,7 +4,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import com.qw.taczhacker.config.HackConfig;
 import com.qw.taczhacker.keybind.KeyBindings;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
@@ -15,6 +14,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -29,9 +29,11 @@ import org.joml.Vector4f;
  * 纯客户端渲染，不发任何包，也不改任何游戏状态 —— 服务端装不装本 mod 都一样能用。
  *
  * 实现要点：
- * 1. 投影：用相机的 view 矩阵（camera.rotation() 的共轭）+ 当前 FOV 的投影矩阵，
- *    把「玩家头顶的世界坐标」换算成 NDC，再映射到 GUI 坐标
- * 2. w <= 0 表示目标在相机背后，直接跳过（否则会投影出镜像的鬼影）
+ * 1. 投影矩阵**从渲染管线里直接拿**（RenderLevelStageEvent 的 poseStack + projectionMatrix），
+ *    不要自己用 camera.rotation().conjugate() 拼 —— 那个方向极容易搞反，
+ *    一反过来就变成「视野内的目标被丢掉、视野外的反而画出来」。
+ *    相机位置也一起记下来，因为那套矩阵是「相机相对」的，输入坐标要先减相机位置。
+ * 2. w <= 0 表示目标在相机平面之后，必须丢弃（否则透视除法会翻到屏幕另一侧出鬼影）
  * 3. 画斜线：GuiGraphics 只能画轴对齐矩形，所以 push 一个旋转过的 PoseStack，
  *    在局部坐标里画一个「长度 x 线宽」的矩形，看起来就是一条斜线
  *
@@ -46,6 +48,14 @@ public class PlayerEspHandler {
 
     /** 上一 tick 按键是否按下（做边缘检测，避免按住时疯狂切换） */
     private static boolean wasKeyDown = false;
+
+    // ============================================================
+    // 每帧从世界渲染阶段抓下来的矩阵（GUI 阶段没有世界矩阵可用了）
+    // ============================================================
+    private static final Matrix4f FRAME_MODELVIEW = new Matrix4f();
+    private static final Matrix4f FRAME_PROJECTION = new Matrix4f();
+    private static double frameCamX, frameCamY, frameCamZ;
+    private static boolean frameMatricesValid = false;
 
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
@@ -70,11 +80,31 @@ public class PlayerEspHandler {
         return espActive;
     }
 
+    /**
+     * 在世界渲染阶段把当前的 view / projection 矩阵和相机位置存下来
+     *
+     * RenderGuiOverlayEvent 时世界矩阵已经被换成 GUI 的了，所以必须在这里抓。
+     */
+    @SubscribeEvent
+    public static void onRenderLevel(RenderLevelStageEvent event) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
+
+        FRAME_MODELVIEW.set(event.getPoseStack().last().pose());
+        FRAME_PROJECTION.set(event.getProjectionMatrix());
+
+        Vec3 cameraPos = event.getCamera().getPosition();
+        frameCamX = cameraPos.x;
+        frameCamY = cameraPos.y;
+        frameCamZ = cameraPos.z;
+        frameMatricesValid = true;
+    }
+
     @SubscribeEvent
     public static void onRenderOverlay(RenderGuiOverlayEvent.Post event) {
         // 挂在 hotbar 那一层之后，和 HUD 状态显示同一个时机
         if (event.getOverlay() != VanillaGuiOverlay.HOTBAR.type()) return;
         if (!HackConfig.globalEnabled || !HackConfig.espEnabled || !espActive) return;
+        if (!frameMatricesValid) return;
 
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer self = mc.player;
@@ -104,29 +134,25 @@ public class PlayerEspHandler {
 
             // 瞄头顶而不是脚底，线才不会插进地里
             Vec3 head = new Vec3(entity.getX(), entity.getBoundingBox().maxY + 0.2D, entity.getZ());
-            Vec3 screen = worldToScreen(mc, head);
+            float[] screen = worldToScreen(mc, head);
             if (screen == null) continue;
 
-            drawLine(graphics, centerX, centerY,
-                    (float) screen.x, (float) screen.y, color, lineWidth);
+            drawLine(graphics, centerX, centerY, screen[0], screen[1], color, lineWidth);
         }
     }
 
     /**
-     * 世界坐标 → GUI 坐标；目标在相机背后时返回 null
+     * 世界坐标 → GUI 坐标；目标在相机平面之后时返回 null
      */
-    private static Vec3 worldToScreen(Minecraft mc, Vec3 worldPos) {
-        Camera camera = mc.gameRenderer.getMainCamera();
-        Vec3 relative = worldPos.subtract(camera.getPosition());
+    private static float[] worldToScreen(Minecraft mc, Vec3 worldPos) {
+        // 抓下来的矩阵是「相机相对」的，所以先把世界坐标平移到相机坐标系
+        float relativeX = (float) (worldPos.x - frameCamX);
+        float relativeY = (float) (worldPos.y - frameCamY);
+        float relativeZ = (float) (worldPos.z - frameCamZ);
 
-        Matrix4f projection = mc.gameRenderer.getProjectionMatrix(mc.options.fov().get().doubleValue());
-
-        PoseStack stack = new PoseStack();
-        stack.mulPose(camera.rotation().conjugate());
-
-        Vector4f vec = new Vector4f((float) relative.x, (float) relative.y, (float) relative.z, 1.0F);
-        vec.mul(stack.last().pose());
-        vec.mul(projection);
+        Vector4f vec = new Vector4f(relativeX, relativeY, relativeZ, 1.0F);
+        vec.mul(FRAME_MODELVIEW);
+        vec.mul(FRAME_PROJECTION);
 
         // w <= 0 说明点在相机平面之后，透视除法会翻到屏幕另一侧，必须丢掉
         if (vec.w() <= 0.01F) {
@@ -136,9 +162,9 @@ public class PlayerEspHandler {
         float ndcX = vec.x() / vec.w();
         float ndcY = vec.y() / vec.w();
 
-        double screenX = (ndcX * 0.5D + 0.5D) * mc.getWindow().getGuiScaledWidth();
-        double screenY = (-ndcY * 0.5D + 0.5D) * mc.getWindow().getGuiScaledHeight();
-        return new Vec3(screenX, screenY, 0.0D);
+        float screenX = (float) ((ndcX * 0.5D + 0.5D) * mc.getWindow().getGuiScaledWidth());
+        float screenY = (float) ((-ndcY * 0.5D + 0.5D) * mc.getWindow().getGuiScaledHeight());
+        return new float[]{screenX, screenY};
     }
 
     /**
