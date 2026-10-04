@@ -3,7 +3,6 @@ package com.qw.taczhacker.mixin;
 import com.qw.taczhacker.config.HackConfig;
 import com.qw.taczhacker.feature.aim.AimHandler;
 import com.qw.taczhacker.feature.aim.AimHandler.AimAngles;
-import com.qw.taczhacker.feature.aim.SilentScope;
 import com.qw.taczhacker.feature.fakerot.FakeRotationHandler;
 import com.qw.taczhacker.network.ServerDetector;
 import net.minecraft.client.Minecraft;
@@ -94,11 +93,6 @@ public class LocalPlayerShootMixin {
                 return;
             }
         }
-
-        // ========== 静默开镜 ==========
-        // 只发 Tacz 的 aim 包骗服务端（散布按瞄准档算），本地不进入瞄准状态。
-        // 放在这里是为了让 aim 包比后面的 shoot 包先到服务端（TCP 保序）
-        SilentScope.onShoot();
 
         // ========== 目标选择（无论是否转视角，都需要） ==========
         // 选择目标
