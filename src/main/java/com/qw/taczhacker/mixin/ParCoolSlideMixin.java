@@ -104,18 +104,15 @@ public abstract class ParCoolSlideMixin {
      * 是否请求结束滑铲
      */
     private boolean taczhacker$isCancelRequested() {
-        // 1) 本 mod 的取消键（默认 Z）
-        if (ParCoolLongSlide.isCancelKeyHeld()) return true;
-
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return false;
 
-        // 2) 跳跃键（ParCool 原版就是靠跳跃退出滑铲）
+        // 1) 跳跃键（ParCool 原版就是靠跳跃退出滑铲）
         if (HackConfig.parcoolCancelByJump && mc.options.keyJump.isDown()) {
             return true;
         }
 
-        // 3) 松开后再按一次滑铲键（ParCool 的爬行键，默认 C）
+        // 2) 松开后再按一次滑铲键（ParCool 的爬行键，默认 C）
         //    getDoingTick() <= 1 时忽略：起滑那一两 tick 按键必然还按着，不能自己把自己取消掉
         int doingTick = ((com.alrex.parcool.common.action.Action) (Object) this).getDoingTick();
         return doingTick > 1 && ParCoolLongSlide.isSlideKeyJustPressed();

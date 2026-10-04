@@ -1,6 +1,7 @@
 package com.qw.taczhacker.feature.hud;
 
 import com.qw.taczhacker.config.HackConfig;
+import com.qw.taczhacker.feature.aim.AimHandler;
 import com.qw.taczhacker.feature.aimbot.AimbotHandler;
 import com.qw.taczhacker.feature.esp.PlayerEspHandler;
 import com.qw.taczhacker.feature.fakerot.FakeRotationHandler;
@@ -46,7 +47,7 @@ public class HudOverlayHandler {
 
     static {
         // 功能1：开火静默自瞄（无运行时状态，配置即开关）
-        entries.add(new Entry("自瞄", () -> HackConfig.aimEnabled, () -> HackConfig.aimEnabled));
+        entries.add(new Entry("自瞄", () -> HackConfig.aimEnabled, () -> AimHandler.isActive()));
         // 功能2：低头转圈
         entries.add(new Entry("转圈", () -> HackConfig.fakerotEnabled, () -> FakeRotationHandler.isEnabled()));
         // 功能3：视角锁定自瞄

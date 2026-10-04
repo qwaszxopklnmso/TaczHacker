@@ -1,6 +1,7 @@
 package com.qw.taczhacker.feature.aim;
 
 import com.qw.taczhacker.config.HackConfig;
+import com.qw.taczhacker.keybind.KeyBindings;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
@@ -10,6 +11,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -29,7 +34,51 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 注意：具体 Tacz 类的 Mixin hook 点需要反编译 tacz-1.20.1-1.1.8-hotfix.jar 确认。
  * 当前实现提供目标选择 + 角度计算工具方法，Mixin 部分以 TODO 标记。
  */
+@Mod.EventBusSubscriber(modid = "taczhacker", value = Dist.CLIENT)
 public class AimHandler {
+
+    /**
+     * 运行时开关（按 N 切换）。
+     *
+     * 默认 true：配置里把 aim.enabled 打开就直接生效，按键只是多一个临时开关，
+     * 不会因为多了个开关就得每次进游戏先按一下。
+     */
+    private static volatile boolean aimActive = true;
+
+    /** 上一 tick 按键是否按下（边缘检测） */
+    private static boolean wasKeyDown = false;
+
+    /**
+     * 功能是否处于生效状态（供 Mixin / HUD 判断）
+     */
+    public static boolean isActive() {
+        return HackConfig.globalEnabled && HackConfig.aimEnabled && aimActive;
+    }
+
+    /**
+     * 按键切换（默认 N，可在原版按键设置里改）
+     */
+    @SubscribeEvent
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+        if (!HackConfig.globalEnabled) return;
+
+        boolean keyDown = KeyBindings.AIM_KEY.isDown();
+        if (keyDown && !wasKeyDown) {
+            if (!HackConfig.aimEnabled) {
+                // 配置关着时按键也要有反应：按一次直接打开配置
+                HackConfig.aimEnabled = true;
+                HackConfig.save();
+                aimActive = true;
+            } else {
+                aimActive = !aimActive;
+            }
+        }
+        wasKeyDown = keyDown;
+    }
 
     /**
      * 待使用的瞄准角度。
@@ -74,7 +123,7 @@ public class AimHandler {
      * 例如：玩家抬头看天空，目标在脚下，3D角度≈180°，但水平角度可能很小。
      */
     public static LivingEntity selectTarget(LocalPlayer player) {
-        if (!HackConfig.globalEnabled || !HackConfig.aimEnabled) return null;
+        if (!isActive()) return null;
 
         double radius = HackConfig.aimLockRadius;
         double coneAngle = Math.toRadians(HackConfig.aimConeAngle);
@@ -190,7 +239,7 @@ public class AimHandler {
      * @return 最近的可攻击目标，或 null
      */
     public static LivingEntity selectTargetServerSide(LivingEntity shooter) {
-        if (!HackConfig.globalEnabled || !HackConfig.aimEnabled) return null;
+        if (!isActive()) return null;
 
         double radius = HackConfig.aimLockRadius;
         AABB searchBox = shooter.getBoundingBox().inflate(radius);
@@ -213,7 +262,7 @@ public class AimHandler {
      * @return 最近的可攻击目标，或 null
      */
     public static LivingEntity selectTargetNear(Vec3 center, Level level, LivingEntity shooter) {
-        if (!HackConfig.globalEnabled || !HackConfig.aimEnabled) return null;
+        if (!isActive()) return null;
 
         double radius = HackConfig.aimLockRadius;
         AABB searchBox = new AABB(center, center).inflate(radius);

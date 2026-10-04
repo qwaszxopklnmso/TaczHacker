@@ -32,9 +32,6 @@ import com.qw.taczhacker.config.HackConfig;
  */
 public final class ParCoolLongSlide {
 
-    /** 取消键是否被按下（每 tick 由客户端处理器刷新） */
-    private static volatile boolean cancelKeyHeld = false;
-
     /** 本 tick 的滑铲状态（由 Slide 注入每 tick 标记） */
     private static volatile boolean slideActive = false;
 
@@ -64,7 +61,7 @@ public final class ParCoolLongSlide {
      * 它跟随客户端同步过来的开始/结束状态即可。
      */
     public static boolean shouldForceContinue() {
-        return isEnabled() && !cancelKeyHeld;
+        return isEnabled();
     }
 
     /**
@@ -91,20 +88,6 @@ public final class ParCoolLongSlide {
     // ============================================================
     // 客户端 API
     // ============================================================
-
-    /**
-     * 刷新取消键状态（由客户端按键处理器调用）
-     */
-    public static void setCancelKeyHeld(boolean held) {
-        cancelKeyHeld = held;
-    }
-
-    /**
-     * 本 mod 的「取消长滑铲」键当前是否按下
-     */
-    public static boolean isCancelKeyHeld() {
-        return cancelKeyHeld;
-    }
 
     /**
      * 刷新滑铲键状态（由客户端按键处理器每 tick 调用）
@@ -143,7 +126,6 @@ public final class ParCoolLongSlide {
      * 退出世界 / 功能关闭时复位
      */
     public static void reset() {
-        cancelKeyHeld = false;
         slideActive = false;
         slideActiveLastTick = false;
         slideKeyPressed = false;

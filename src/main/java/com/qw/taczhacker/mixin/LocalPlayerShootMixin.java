@@ -63,8 +63,8 @@ public class LocalPlayerShootMixin {
             remap = false
     )
     private void onShootBefore(CallbackInfoReturnable<?> cir) {
-        // 检查总开关和功能1开关
-        if (!HackConfig.globalEnabled || !HackConfig.aimEnabled) {
+        // 检查总开关、功能1配置开关和运行时按键开关（默认 N）
+        if (!AimHandler.isActive()) {
             return;
         }
 

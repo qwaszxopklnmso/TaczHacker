@@ -15,6 +15,14 @@ import org.lwjgl.glfw.GLFW;
 @Mod.EventBusSubscriber(modid = "taczhacker", bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class KeyBindings {
 
+    // 功能1：开火静默自瞄（开关切换）
+    public static final KeyMapping AIM_KEY = new KeyMapping(
+            "key.taczhacker.aim",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_N,  // 默认 N 键
+            "key.category.taczhacker"
+    );
+
     // 功能3：视角锁定自瞄（按住触发）
     public static final KeyMapping AIMBOT_KEY = new KeyMapping(
             "key.taczhacker.aimbot",
@@ -55,14 +63,6 @@ public class KeyBindings {
             "key.category.taczhacker"
     );
 
-    // 功能7：取消 ParCool 长滑铲（起滑仍用 ParCool 自己的按键）
-    public static final KeyMapping LONG_SLIDE_CANCEL_KEY = new KeyMapping(
-            "key.taczhacker.longslide",
-            InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_Z,  // 默认 Z 键
-            "key.category.taczhacker"
-    );
-
     // 功能8：玩家 ESP（准心连线，开关切换）
     public static final KeyMapping ESP_KEY = new KeyMapping(
             "key.taczhacker.esp",
@@ -81,12 +81,12 @@ public class KeyBindings {
 
     @SubscribeEvent
     public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
+        event.register(AIM_KEY);
         event.register(AIMBOT_KEY);
         event.register(FLIGHT_KEY);
         event.register(XRAY_KEY);
         event.register(FAKEROT_KEY);
         event.register(FULLBRIGHT_KEY);
-        event.register(LONG_SLIDE_CANCEL_KEY);
         event.register(ESP_KEY);
         event.register(NAMETAGS_KEY);
     }
