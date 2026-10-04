@@ -84,7 +84,8 @@ public class PlayerEspHandler {
         float centerX = mc.getWindow().getGuiScaledWidth() / 2.0F;
         float centerY = mc.getWindow().getGuiScaledHeight() / 2.0F;
 
-        int color = HackConfig.espColor;
+        // 兜底：不管配置里存的是什么，线条永远不透明（alpha=0 会整条线看不见）
+        int color = HackConfig.espColor | 0xFF000000;
         float lineWidth = (float) HackConfig.espLineWidth;
         double maxDistanceSq = HackConfig.espMaxDistance * HackConfig.espMaxDistance;
 

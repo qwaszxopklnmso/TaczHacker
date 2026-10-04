@@ -477,7 +477,9 @@ public class HackConfig {
             // 功能8
             espEnabled = ESP_ENABLED.get();
             espMaxDistance = ESP_MAX_DISTANCE.get();
-            espColor = ESP_COLOR.get();
+            // 强制补上不透明 alpha：1.2.0 用的颜色控件带 alpha，保存过 alpha=0 的值，
+            // 读出来直接拿去画就是全透明，看起来像「ESP 完全没效果」
+            espColor = ESP_COLOR.get() | 0xFF000000;
             espLineWidth = ESP_LINE_WIDTH.get();
             espIncludeMobs = ESP_INCLUDE_MOBS.get();
 
