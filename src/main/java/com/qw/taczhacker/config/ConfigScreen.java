@@ -260,16 +260,19 @@ public class ConfigScreen {
                 .setSaveConsumer(v -> HackConfig.flightEnabled = v)
                 .build());
         flightCat.addEntry(e.startDoubleField(
-                Component.literal("水平速度（格/tick）"),
+                Component.literal("默认推进速度（格/tick）"),
                 HackConfig.flightHorizontalSpeed
-        ).setTooltip(Component.literal("建议 ≤0.5 避免触发位置校验"))
-                .setMin(0.05).setMax(2.0)
+        ).setTooltip(Component.literal("开飞行后自动朝视线方向飘的速度，不是按 WASD 的移动速度\n"
+                + "0 = 不自动飘，水平只靠自己按键走\n"
+                + "建议 ≤0.5 避免触发位置校验"))
+                .setMin(0.0).setMax(2.0)
                 .setSaveConsumer(v -> HackConfig.flightHorizontalSpeed = v)
                 .build());
         flightCat.addEntry(e.startDoubleField(
                 Component.literal("垂直速度（格/tick）"),
                 HackConfig.flightVerticalSpeed
-        ).setMin(0.05).setMax(2.0)
+        ).setTooltip(Component.literal("按跳跃上升、潜行下降的速度，0 = 按了也不升降"))
+                .setMin(0.0).setMax(2.0)
                 .setSaveConsumer(v -> HackConfig.flightVerticalSpeed = v)
                 .build());
         flightCat.addEntry(e.startBooleanToggle(

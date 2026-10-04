@@ -198,12 +198,18 @@ public class HackConfig {
             .define("flight.enabled", true);
 
     private static final ForgeConfigSpec.DoubleValue FLIGHT_HORIZONTAL_SPEED = BUILDER
-            .comment("水平自动前进速度（格/tick），建议 ≤0.5 避免触发位置校验",
-                    "Horizontal speed in blocks/tick. Keep ≤0.5 to avoid position checks.")
+            .comment("飞行时的默认推进速度（格/tick）：开了飞行之后，不管按不按方向键，\n"
+                    + "都朝视线方向自动往前飘的那个速度。\n"
+                    + "注意这不是「飞行时的移动速度」—— 按 WASD 怎么走是原版行为，跟这个值无关。\n"
+                    + "设 0 = 不自动往前飘，水平全靠 WASD 自己走（垂直方向仍然会跟着重力缓慢下坠）。\n"
+                    + "建议 ≤0.5 避免触发位置校验。",
+                    "Default forward drift speed while flying, in blocks/tick. "
+                    + "Not the WASD movement speed. 0 = hover in place with no auto drift. Keep <=0.5.")
             .defineInRange("flight.horizontalSpeed", 0.0, 0.0, 2.5);
 
     private static final ForgeConfigSpec.DoubleValue FLIGHT_VERTICAL_SPEED = BUILDER
-            .comment("垂直飞行速度（格/tick）", "Vertical speed in blocks/tick")
+            .comment("垂直飞行速度（格/tick），按跳跃上升、潜行下降时的速度。设 0 = 按了也不升降",
+                    "Vertical speed in blocks/tick for jump-up / sneak-down. 0 = no vertical movement.")
             .defineInRange("flight.verticalSpeed", 0.4, 0.0, 2.5);
 
     private static final ForgeConfigSpec.BooleanValue FLIGHT_TOGGLE_MODE = BUILDER

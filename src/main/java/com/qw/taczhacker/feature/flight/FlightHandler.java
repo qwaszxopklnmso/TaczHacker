@@ -96,13 +96,20 @@ public class FlightHandler {
         // 计算当前速度
         Vec3 motion = player.getDeltaMovement();
 
-        // 水平速度：向视线方向平滑加速
-        double targetMotionX = lookX * horizontalSpeed;
-        double targetMotionZ = lookZ * horizontalSpeed;
+        // 水平：朝视线方向的「自动推进」速度。
+        // 设 0 = 不推，水平动量原样留住（水平全交给 WASD 和惯性）。
+        // 这里不能写成「衰减到 0」——那会把按 WASD 走出来的速度每 tick 砍掉 30%，
+        // 结果就是推进速度填 0 之后连正常走路都变慢
+        double newMotionX = motion.x;
+        double newMotionZ = motion.z;
+        if (horizontalSpeed > 0.0) {
+            double targetMotionX = lookX * horizontalSpeed;
+            double targetMotionZ = lookZ * horizontalSpeed;
 
-        // 平滑过渡（避免抖动）
-        double newMotionX = motion.x + (targetMotionX - motion.x) * 0.3;
-        double newMotionZ = motion.z + (targetMotionZ - motion.z) * 0.3;
+            // 平滑过渡（避免抖动）
+            newMotionX = motion.x + (targetMotionX - motion.x) * 0.3;
+            newMotionZ = motion.z + (targetMotionZ - motion.z) * 0.3;
+        }
 
         // 垂直升降
         double newMotionY = 0;
