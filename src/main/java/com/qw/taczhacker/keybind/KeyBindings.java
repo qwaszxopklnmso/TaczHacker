@@ -71,6 +71,14 @@ public class KeyBindings {
             "key.category.taczhacker"
     );
 
+    // 功能9：实体信息牌（开关切换）
+    public static final KeyMapping NAMETAGS_KEY = new KeyMapping(
+            "key.taczhacker.nametags",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_K,  // 默认 K 键
+            "key.category.taczhacker"
+    );
+
     @SubscribeEvent
     public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         event.register(AIMBOT_KEY);
@@ -80,5 +88,6 @@ public class KeyBindings {
         event.register(FULLBRIGHT_KEY);
         event.register(LONG_SLIDE_CANCEL_KEY);
         event.register(ESP_KEY);
+        event.register(NAMETAGS_KEY);
     }
 }

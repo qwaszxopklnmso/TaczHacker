@@ -3,9 +3,9 @@ package com.qw.taczhacker.feature.esp;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import com.qw.taczhacker.config.HackConfig;
+import com.qw.taczhacker.feature.render.ScreenProjector;
 import com.qw.taczhacker.keybind.KeyBindings;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
@@ -15,13 +15,10 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import org.joml.Matrix4f;
-import org.joml.Vector4f;
 
 /**
  * 功能8：玩家 ESP（准心连线）
@@ -29,16 +26,12 @@ import org.joml.Vector4f;
  * 从屏幕正中心的准心向外画一条线，连到每个目标头顶在屏幕上的投影位置。
  * 纯客户端渲染，不发任何包，也不改任何游戏状态 —— 服务端装不装本 mod 都一样能用。
  *
- * 实现要点：
- * 1. 投影矩阵**从渲染管线里直接拿**（RenderLevelStageEvent 的 poseStack + projectionMatrix），
- *    不要自己用 camera.rotation().conjugate() 拼 —— 那个方向极容易搞反，
- *    一反过来就变成「视野内的目标被丢掉、视野外的反而画出来」。
- *    相机位置也一起记下来，因为那套矩阵是「相机相对」的，输入坐标要先减相机位置。
- * 2. w <= 0 表示目标在相机平面之后，必须丢弃（否则透视除法会翻到屏幕另一侧出鬼影）
- * 3. 画斜线：GuiGraphics 只能画轴对齐矩形，所以 push 一个旋转过的 PoseStack，
- *    在局部坐标里画一个「长度 x 线宽」的矩形，看起来就是一条斜线
+ * 投影那套（矩阵抓取 + 相机空间分段处理）在 {@link ScreenProjector} 里，和 NameTags 共用。
  *
- * 全部参数（开关 / 距离 / 颜色 / 线宽 / 是否画生物）走 Cloth Config，
+ * 画斜线：GuiGraphics 只能画轴对齐矩形，所以 push 一个「平移到起点 + 绕 Z 轴旋转到线的方向」
+ * 的 PoseStack，在局部坐标里画一个「长度 x 线宽」的矩形。
+ *
+ * 全部参数（开关 / 距离 / 颜色 / 线宽 / 是否画生物 / 血量）走 Cloth Config，
  * 键位默认 J，可在原版按键设置里改。
  */
 @Mod.EventBusSubscriber(modid = "taczhacker", value = Dist.CLIENT)
@@ -49,14 +42,6 @@ public class PlayerEspHandler {
 
     /** 上一 tick 按键是否按下（做边缘检测，避免按住时疯狂切换） */
     private static boolean wasKeyDown = false;
-
-    // ============================================================
-    // 每帧从世界渲染阶段抓下来的矩阵（GUI 阶段没有世界矩阵可用了）
-    // ============================================================
-    private static final Matrix4f FRAME_MODELVIEW = new Matrix4f();
-    private static final Matrix4f FRAME_PROJECTION = new Matrix4f();
-    private static double frameCamX, frameCamY, frameCamZ;
-    private static boolean frameMatricesValid = false;
 
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
@@ -81,39 +66,20 @@ public class PlayerEspHandler {
         return espActive;
     }
 
-    /**
-     * 在世界渲染阶段把当前的 view / projection 矩阵和相机位置存下来
-     *
-     * RenderGuiOverlayEvent 时世界矩阵已经被换成 GUI 的了，所以必须在这里抓。
-     */
-    @SubscribeEvent
-    public static void onRenderLevel(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
-
-        FRAME_MODELVIEW.set(event.getPoseStack().last().pose());
-        FRAME_PROJECTION.set(event.getProjectionMatrix());
-
-        Vec3 cameraPos = event.getCamera().getPosition();
-        frameCamX = cameraPos.x;
-        frameCamY = cameraPos.y;
-        frameCamZ = cameraPos.z;
-        frameMatricesValid = true;
-    }
-
     @SubscribeEvent
     public static void onRenderOverlay(RenderGuiOverlayEvent.Post event) {
-        // 挂在 hotbar 那一层之后，和 HUD 状态显示同一个时机
+        // 挂在 hotbar 那一层之后，和 HUD 状态显示同一时机
         if (event.getOverlay() != VanillaGuiOverlay.HOTBAR.type()) return;
         if (!HackConfig.globalEnabled || !HackConfig.espEnabled || !espActive) return;
-        if (!frameMatricesValid) return;
+        if (!ScreenProjector.isReady()) return;
 
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer self = mc.player;
         if (self == null || mc.level == null) return;
 
         GuiGraphics graphics = event.getGuiGraphics();
-        float centerX = mc.getWindow().getGuiScaledWidth() / 2.0F;
-        float centerY = mc.getWindow().getGuiScaledHeight() / 2.0F;
+        float centerX = ScreenProjector.screenWidth() / 2.0F;
+        float centerY = ScreenProjector.screenHeight() / 2.0F;
 
         // 兜底：不管配置里存的是什么，线条永远不透明（alpha=0 会整条线看不见）
         int color = HackConfig.espColor | 0xFF000000;
@@ -135,7 +101,7 @@ public class PlayerEspHandler {
 
             // 瞄 bounding box 顶端（正好头顶）。以前多加了 0.2，线看着会浮在头上
             Vec3 head = new Vec3(entity.getX(), entity.getBoundingBox().maxY, entity.getZ());
-            float[] screen = worldToScreen(mc, head);
+            float[] screen = ScreenProjector.project(head);
             if (screen == null) continue;
 
             drawLine(graphics, centerX, centerY, screen[0], screen[1], color, lineWidth);
@@ -147,61 +113,11 @@ public class PlayerEspHandler {
     }
 
     /**
-     * 世界坐标 → GUI 坐标；拿不到有效投影时返回 null
-     *
-     * 目标在相机平面之后**不能**走透视除法：除以负的 w 会把符号翻掉，
-     * w 接近 0 还会爆成无穷大 —— 结果就是「背后的目标线指向错误的方向」。
-     * 所以背后单独处理：只拿相机空间的 x/y 定方向（右就是右、上就是上），
-     * 大小固定放大到 NDC 的 ±4，肯定落到屏幕外。
-     */
-    private static float[] worldToScreen(Minecraft mc, Vec3 worldPos) {
-        // 抓下来的 view 矩阵是「相机相对」的，先减相机位置
-        float relativeX = (float) (worldPos.x - frameCamX);
-        float relativeY = (float) (worldPos.y - frameCamY);
-        float relativeZ = (float) (worldPos.z - frameCamZ);
-
-        // 转到相机空间（相机朝 -Z 看）
-        Vector4f eye = new Vector4f(relativeX, relativeY, relativeZ, 1.0F);
-        eye.mul(FRAME_MODELVIEW);
-
-        float ndcX;
-        float ndcY;
-
-        if (eye.z < -0.05F) {
-            // 相机前方：正常做透视投影
-            Vector4f clip = new Vector4f(eye.x, eye.y, eye.z, 1.0F);
-            clip.mul(FRAME_PROJECTION);
-            if (clip.w <= 1.0E-4F) {
-                return null;
-            }
-            ndcX = clip.x / clip.w;
-            ndcY = clip.y / clip.w;
-        } else {
-            // 相机平面之后：方向只由相机空间的 x/y 决定，不碰 w
-            float length = Mth.sqrt(eye.x * eye.x + eye.y * eye.y);
-            if (length < 1.0E-3F) {
-                // 正好在正后方，没有方向可言，就让它指向屏幕中心
-                length = 1.0E-3F;
-            }
-            float scale = 4.0F / length;
-            ndcX = eye.x * scale;
-            ndcY = eye.y * scale;
-        }
-
-        float screenW = mc.getWindow().getGuiScaledWidth();
-        float screenH = mc.getWindow().getGuiScaledHeight();
-
-        float screenX = (ndcX * 0.5F + 0.5F) * screenW;
-        float screenY = (-ndcY * 0.5F + 0.5F) * screenH;
-        return new float[]{screenX, screenY};
-    }
-
-    /**
      * 在目标头顶（线的末端）画血量文字
      *
      * 数据来源是客户端拿到的实体血量。参考 FDPClient 的 NameTags：
-     * 有些服务器根本不把实体血量同步给客户端，那边会退化成读记分板的 health objective。
-     * 这里先用最直接的方式，读不到就显示 0。
+     * 有些服务器根本不把实体血量同步给客户端，那边会退化成读记分板的 health objective
+     * （而且只对玩家有效）。这里先用最直接的方式。
      */
     private static void drawHealth(GuiGraphics graphics, Minecraft mc, float screenX, float screenY,
                                     LivingEntity living) {
@@ -221,10 +137,9 @@ public class PlayerEspHandler {
             color = 0xFFFF5555;   // 红
         }
 
-        Font font = mc.font;
-        int textX = Math.round(screenX) - font.width(text) / 2;
-        int textY = Math.round(screenY) - font.lineHeight - 1;
-        graphics.drawString(font, text, textX, textY, color, true);
+        int textX = Math.round(screenX) - mc.font.width(text) / 2;
+        int textY = Math.round(screenY) - mc.font.lineHeight - 1;
+        graphics.drawString(mc.font, text, textX, textY, color, true);
     }
 
     /**

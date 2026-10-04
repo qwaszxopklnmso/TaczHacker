@@ -6,6 +6,7 @@ import com.qw.taczhacker.feature.esp.PlayerEspHandler;
 import com.qw.taczhacker.feature.fakerot.FakeRotationHandler;
 import com.qw.taczhacker.feature.flight.FlightHandler;
 import com.qw.taczhacker.feature.fullbright.FullbrightHandler;
+import com.qw.taczhacker.feature.nametags.NameTagsHandler;
 import com.qw.taczhacker.feature.parcool.ParCoolLongSlide;
 import com.qw.taczhacker.feature.xray.XrayHandler;
 import net.minecraft.client.Minecraft;
@@ -62,6 +63,9 @@ public class HudOverlayHandler {
         // 功能8：玩家 ESP（按 J 切换）
         entries.add(new Entry("玩家ESP", () -> HackConfig.espEnabled,
                 () -> PlayerEspHandler.isEspActive()));
+        // 功能9：实体信息牌（按 K 切换）
+        entries.add(new Entry("信息牌", () -> HackConfig.nameTagsEnabled,
+                () -> NameTagsHandler.isActive()));
     }
 
     @SubscribeEvent

@@ -274,6 +274,63 @@ public class HackConfig {
             .define("esp.showHealth", true);
 
     // ============================================================
+    // 功能9：实体信息牌（NameTags）
+    // ============================================================
+    private static final ForgeConfigSpec.BooleanValue NAMETAGS_ENABLED = BUILDER
+            .comment("功能9：实体信息牌总开关。在目标头顶显示名字 / 血量 / 距离 / 血条。\n"
+                    + "按键切换（默认 K），纯客户端渲染，不发包。",
+                    "NameTags master switch. Shows name / health / distance / bar above entities. "
+                    + "Toggle with the bound key (default K). Pure client side.")
+            .define("nametags.enabled", false);
+
+    private static final ForgeConfigSpec.DoubleValue NAMETAGS_MAX_DISTANCE = BUILDER
+            .comment("最远显示距离（格）", "Max render distance in blocks")
+            .defineInRange("nametags.maxDistance", 64.0, 4.0, 512.0);
+
+    private static final ForgeConfigSpec.BooleanValue NAMETAGS_INCLUDE_MOBS = BUILDER
+            .comment("是否也给非玩家生物显示（默认开；关掉就只看玩家）",
+                    "Also show for non-player living entities")
+            .define("nametags.includeMobs", true);
+
+    private static final ForgeConfigSpec.BooleanValue NAMETAGS_SHOW_NAME = BUILDER
+            .comment("显示名字（玩家是 ID，生物是种类名）", "Show the entity name")
+            .define("nametags.showName", true);
+
+    private static final ForgeConfigSpec.BooleanValue NAMETAGS_SHOW_HEALTH = BUILDER
+            .comment("显示血量。读不到血量（服务器不同步）时显示 ? 而不是 0",
+                    "Show health. Shows ? instead of 0 when the server does not sync it.")
+            .define("nametags.showHealth", true);
+
+    private static final ForgeConfigSpec.BooleanValue NAMETAGS_HEALTH_ROUNDED = BUILDER
+            .comment("血量取整（关掉则保留一位小数）", "Round health to whole numbers")
+            .define("nametags.healthRounded", true);
+
+    private static final ForgeConfigSpec.BooleanValue NAMETAGS_HEALTH_ABSORPTION = BUILDER
+            .comment("血量计入吸收盾（金苹果那层黄心）", "Include absorption hearts in the value")
+            .define("nametags.healthAbsorption", false);
+
+    private static final ForgeConfigSpec.BooleanValue NAMETAGS_SHOW_DISTANCE = BUILDER
+            .comment("显示与目标的距离（米）", "Show distance to the target")
+            .define("nametags.showDistance", false);
+
+    private static final ForgeConfigSpec.BooleanValue NAMETAGS_SHOW_BAR = BUILDER
+            .comment("显示血条（标签下方一条按血量比例填充的横条）",
+                    "Draw a health bar under the tag")
+            .define("nametags.showBar", true);
+
+    private static final ForgeConfigSpec.IntValue NAMETAGS_BAR_WIDTH = BUILDER
+            .comment("血条宽度（像素）", "Health bar width in pixels")
+            .defineInRange("nametags.barWidth", 40, 10, 200);
+
+    private static final ForgeConfigSpec.DoubleValue NAMETAGS_SCALE = BUILDER
+            .comment("整体缩放（1.0 = 原始大小）", "Overall scale (1.0 = default)")
+            .defineInRange("nametags.scale", 1.0, 0.5, 3.0);
+
+    private static final ForgeConfigSpec.BooleanValue NAMETAGS_BACKGROUND = BUILDER
+            .comment("文字加半透明黑底，远处也看得清", "Draw a translucent background behind the text")
+            .define("nametags.background", true);
+
+    // ============================================================
     // 构建 SPEC
     // ============================================================
     public static final ForgeConfigSpec SPEC = BUILDER.build();
@@ -354,6 +411,20 @@ public class HackConfig {
         ESP_INCLUDE_MOBS.set(espIncludeMobs);
         ESP_SHOW_HEALTH.set(espShowHealth);
 
+        // 功能9
+        NAMETAGS_ENABLED.set(nameTagsEnabled);
+        NAMETAGS_MAX_DISTANCE.set(nameTagsMaxDistance);
+        NAMETAGS_INCLUDE_MOBS.set(nameTagsIncludeMobs);
+        NAMETAGS_SHOW_NAME.set(nameTagsShowName);
+        NAMETAGS_SHOW_HEALTH.set(nameTagsShowHealth);
+        NAMETAGS_HEALTH_ROUNDED.set(nameTagsHealthRounded);
+        NAMETAGS_HEALTH_ABSORPTION.set(nameTagsHealthAbsorption);
+        NAMETAGS_SHOW_DISTANCE.set(nameTagsShowDistance);
+        NAMETAGS_SHOW_BAR.set(nameTagsShowBar);
+        NAMETAGS_BAR_WIDTH.set(nameTagsBarWidth);
+        NAMETAGS_SCALE.set(nameTagsScale);
+        NAMETAGS_BACKGROUND.set(nameTagsBackground);
+
         // 写入文件
         modConfig.save();
     }
@@ -425,6 +496,20 @@ public class HackConfig {
     public static double espLineWidth;
     public static boolean espIncludeMobs;
     public static boolean espShowHealth;
+
+    // 功能9：实体信息牌
+    public static boolean nameTagsEnabled;
+    public static double nameTagsMaxDistance;
+    public static boolean nameTagsIncludeMobs;
+    public static boolean nameTagsShowName;
+    public static boolean nameTagsShowHealth;
+    public static boolean nameTagsHealthRounded;
+    public static boolean nameTagsHealthAbsorption;
+    public static boolean nameTagsShowDistance;
+    public static boolean nameTagsShowBar;
+    public static int nameTagsBarWidth;
+    public static double nameTagsScale;
+    public static boolean nameTagsBackground;
 
     /**
      * 配置变更时刷新缓存
@@ -502,6 +587,20 @@ public class HackConfig {
             espLineWidth = ESP_LINE_WIDTH.get();
             espIncludeMobs = ESP_INCLUDE_MOBS.get();
             espShowHealth = ESP_SHOW_HEALTH.get();
+
+            // 功能9
+            nameTagsEnabled = NAMETAGS_ENABLED.get();
+            nameTagsMaxDistance = NAMETAGS_MAX_DISTANCE.get();
+            nameTagsIncludeMobs = NAMETAGS_INCLUDE_MOBS.get();
+            nameTagsShowName = NAMETAGS_SHOW_NAME.get();
+            nameTagsShowHealth = NAMETAGS_SHOW_HEALTH.get();
+            nameTagsHealthRounded = NAMETAGS_HEALTH_ROUNDED.get();
+            nameTagsHealthAbsorption = NAMETAGS_HEALTH_ABSORPTION.get();
+            nameTagsShowDistance = NAMETAGS_SHOW_DISTANCE.get();
+            nameTagsShowBar = NAMETAGS_SHOW_BAR.get();
+            nameTagsBarWidth = NAMETAGS_BAR_WIDTH.get();
+            nameTagsScale = NAMETAGS_SCALE.get();
+            nameTagsBackground = NAMETAGS_BACKGROUND.get();
 
             LOGGER.debug("TaczHacker 配置已刷新");
         }

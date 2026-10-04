@@ -347,6 +347,87 @@ public class ConfigScreen {
                 .setSaveConsumer(v -> HackConfig.espShowHealth = v)
                 .build());
 
+        // ============================================================
+        // 功能9：实体信息牌（NameTags）
+        // ============================================================
+        ConfigCategory tagsCat = builder.getOrCreateCategory(Component.literal("功能9：实体信息牌"));
+        tagsCat.addEntry(e.startBooleanToggle(
+                Component.literal("信息牌开关"),
+                HackConfig.nameTagsEnabled
+        ).setTooltip(Component.literal("开启后按 K（可改键）切换显示。\n"
+                + "在目标头顶显示名字 / 血量 / 距离 / 血条，纯客户端渲染、不发包。"))
+                .setSaveConsumer(v -> HackConfig.nameTagsEnabled = v)
+                .build());
+        tagsCat.addEntry(e.startDoubleField(
+                Component.literal("最远显示距离（格）"),
+                HackConfig.nameTagsMaxDistance
+        ).setTooltip(Component.literal("超过这个距离的目标不显示信息牌。"))
+                .setMin(4.0).setMax(512.0)
+                .setSaveConsumer(v -> HackConfig.nameTagsMaxDistance = v)
+                .build());
+        tagsCat.addEntry(e.startBooleanToggle(
+                Component.literal("也给生物显示"),
+                HackConfig.nameTagsIncludeMobs
+        ).setTooltip(Component.literal("默认玩家和生物都显示；关掉就只看玩家。"))
+                .setSaveConsumer(v -> HackConfig.nameTagsIncludeMobs = v)
+                .build());
+        tagsCat.addEntry(e.startBooleanToggle(
+                Component.literal("显示名字"),
+                HackConfig.nameTagsShowName
+        ).setTooltip(Component.literal("玩家显示 ID，生物显示种类名（如「僵尸」）。"))
+                .setSaveConsumer(v -> HackConfig.nameTagsShowName = v)
+                .build());
+        tagsCat.addEntry(e.startBooleanToggle(
+                Component.literal("显示血量"),
+                HackConfig.nameTagsShowHealth
+        ).setTooltip(Component.literal("读不到血量（服务器不同步）时显示 ? 而不是 0。"))
+                .setSaveConsumer(v -> HackConfig.nameTagsShowHealth = v)
+                .build());
+        tagsCat.addEntry(e.startBooleanToggle(
+                Component.literal("血量取整"),
+                HackConfig.nameTagsHealthRounded
+        ).setTooltip(Component.literal("开启显示 18/20，关掉显示 18.5/20.0。"))
+                .setSaveConsumer(v -> HackConfig.nameTagsHealthRounded = v)
+                .build());
+        tagsCat.addEntry(e.startBooleanToggle(
+                Component.literal("血量计入吸收盾"),
+                HackConfig.nameTagsHealthAbsorption
+        ).setTooltip(Component.literal("把金苹果那层黄心也算进血量。"))
+                .setSaveConsumer(v -> HackConfig.nameTagsHealthAbsorption = v)
+                .build());
+        tagsCat.addEntry(e.startBooleanToggle(
+                Component.literal("显示距离"),
+                HackConfig.nameTagsShowDistance
+        ).setTooltip(Component.literal("在牌子最下面显示与目标的距离（米）。"))
+                .setSaveConsumer(v -> HackConfig.nameTagsShowDistance = v)
+                .build());
+        tagsCat.addEntry(e.startBooleanToggle(
+                Component.literal("显示血条"),
+                HackConfig.nameTagsShowBar
+        ).setTooltip(Component.literal("血量下面画一条按比例填充的横条，颜色同样随血量变。"))
+                .setSaveConsumer(v -> HackConfig.nameTagsShowBar = v)
+                .build());
+        tagsCat.addEntry(e.startIntField(
+                Component.literal("血条宽度（像素）"),
+                HackConfig.nameTagsBarWidth
+        ).setTooltip(Component.literal("10 ~ 200。"))
+                .setMin(10).setMax(200)
+                .setSaveConsumer(v -> HackConfig.nameTagsBarWidth = v)
+                .build());
+        tagsCat.addEntry(e.startDoubleField(
+                Component.literal("整体缩放"),
+                HackConfig.nameTagsScale
+        ).setTooltip(Component.literal("1.0 = 原始大小。"))
+                .setMin(0.5).setMax(3.0)
+                .setSaveConsumer(v -> HackConfig.nameTagsScale = v)
+                .build());
+        tagsCat.addEntry(e.startBooleanToggle(
+                Component.literal("文字加背景"),
+                HackConfig.nameTagsBackground
+        ).setTooltip(Component.literal("半透明黑底，远处或者亮背景下也看得清。"))
+                .setSaveConsumer(v -> HackConfig.nameTagsBackground = v)
+                .build());
+
         // 保存回调：用户点击"保存并退出"时持久化配置
         builder.setSavingRunnable(() -> {
             Taczhacker.LOGGER.debug("TaczHacker 配置已保存");
