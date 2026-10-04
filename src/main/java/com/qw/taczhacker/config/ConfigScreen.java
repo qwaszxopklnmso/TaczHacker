@@ -74,6 +74,23 @@ public class ConfigScreen {
                 .setMin(0.0).setMax(180.0)
                 .setSaveConsumer(v -> HackConfig.aimConeAngle = v)
                 .build());
+        aimCat.addEntry(e.startBooleanToggle(
+                Component.literal("显示 FOV 圈"),
+                HackConfig.aimFovCircle
+        ).setTooltip(Component.literal("把上面的追踪锥角画成屏幕上的圈。\n"
+                + "半径 = (屏幕高/2) × tan(锥角) ÷ tan(垂直FOV/2)。\n"
+                + "默认 45°、FOV 70° 时半径约 0.71 倍屏幕高，\n"
+                + "比上下边缘远、比左右边缘近，能看到左右两段弧。"))
+                .setSaveConsumer(v -> HackConfig.aimFovCircle = v)
+                .build());
+        aimCat.addEntry(e.startColorField(
+                Component.literal("FOV 圈颜色"),
+                HackConfig.aimFovCircleColor
+        ).setTooltip(Component.literal("六位 #RRGGBB。"))
+                .setAlphaMode(false)
+                .setDefaultValue(0x00FF00)
+                .setSaveConsumer(v -> HackConfig.aimFovCircleColor = v & 0xFFFFFF)
+                .build());
         aimCat.addEntry(e.startDoubleField(
                 Component.literal("提前量系数"),
                 HackConfig.aimPredictionFactor

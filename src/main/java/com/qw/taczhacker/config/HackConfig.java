@@ -52,6 +52,18 @@ public class HackConfig {
             .comment("追踪锥角（度），0=仅准星方向，180=全向", "Tracking cone angle in degrees")
             .defineInRange("aim.coneAngle", 45.0, 0.0, 180.0);
 
+    private static final ForgeConfigSpec.BooleanValue AIM_FOV_CIRCLE = BUILDER
+            .comment("把功能1 的搜索锥角画成屏幕上的圈（FOV 圈）。\n"
+                    + "半径 = (屏幕高/2) * tan(锥角) / tan(垂直FOV/2)。",
+                    "Draw a circle showing the silent aim search cone.")
+            .define("aim.fovCircle", true);
+
+    private static final ForgeConfigSpec.IntValue AIM_FOV_CIRCLE_COLOR = BUILDER
+            .comment("功能1 的 FOV 圈颜色，填 #RRGGBB 六位十六进制对应的十进制值（0 ~ 0xFFFFFF）。\n"
+                    + "不要带 alpha 字节，否则 Cloth Config 的颜色控件会报「不允许Alpha值！」。",
+                    "Silent aim FOV circle color: decimal value of a #RRGGBB hex. No alpha byte.")
+            .defineInRange("aim.fovCircleColor", 0x00FF00, Integer.MIN_VALUE, Integer.MAX_VALUE);
+
     private static final ForgeConfigSpec.DoubleValue AIM_PREDICTION_FACTOR = BUILDER
             .comment("提前量系数（0=直瞄当前位置，1.0=全额预测）", "Prediction factor for moving targets")
             .defineInRange("aim.predictionFactor", 1.0, 0.0, 3.0);
@@ -397,6 +409,8 @@ public class HackConfig {
         // 功能1
         AIM_ENABLED.set(aimEnabled);
         AIM_SILENT_SCOPE.set(aimSilentScope);
+        AIM_FOV_CIRCLE.set(aimFovCircle);
+        AIM_FOV_CIRCLE_COLOR.set(aimFovCircleColor & 0xFFFFFF);
         AIM_LOCK_RADIUS.set(aimLockRadius);
         AIM_CONE_ANGLE.set(aimConeAngle);
         AIM_PREDICTION_FACTOR.set(aimPredictionFactor);
@@ -489,6 +503,8 @@ public class HackConfig {
     // 功能1
     public static boolean aimEnabled;
     public static boolean aimSilentScope;
+    public static boolean aimFovCircle;
+    public static int aimFovCircleColor;
     public static double aimLockRadius;
     public static double aimConeAngle;
     public static double aimPredictionFactor;
@@ -587,6 +603,8 @@ public class HackConfig {
             // 功能1
             aimEnabled = AIM_ENABLED.get();
             aimSilentScope = AIM_SILENT_SCOPE.get();
+            aimFovCircle = AIM_FOV_CIRCLE.get();
+            aimFovCircleColor = AIM_FOV_CIRCLE_COLOR.get() & 0xFFFFFF;
             aimLockRadius = AIM_LOCK_RADIUS.get();
             aimConeAngle = AIM_CONE_ANGLE.get();
             aimPredictionFactor = AIM_PREDICTION_FACTOR.get();

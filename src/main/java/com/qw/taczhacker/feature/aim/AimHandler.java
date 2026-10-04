@@ -1,6 +1,7 @@
 package com.qw.taczhacker.feature.aim;
 
 import com.qw.taczhacker.config.HackConfig;
+import com.qw.taczhacker.feature.esp.EspRenderer;
 import com.qw.taczhacker.keybind.KeyBindings;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -12,6 +13,8 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.RenderGuiOverlayEvent;
+import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -78,6 +81,44 @@ public class AimHandler {
             }
         }
         wasKeyDown = keyDown;
+    }
+
+    /**
+     * FOV 圈：把功能1 的搜索锥角画成屏幕上的圆
+     *
+     * 角度取 aim.coneAngle（从准星算起的最大夹角），和 selectTarget 的判定同源。
+     * 半径 = (屏幕高/2) * tan(锥角) / tan(垂直FOV/2) —— 屏幕像素是方的，
+     * 这个式子在水平和垂直方向同时成立。
+     *
+     * 默认锥角 45°、FOV 70° 时半径约 0.71 倍屏幕高：比上下边缘远、比左右边缘近，
+     * 所以能看到圆的左右两段弧。
+     */
+    @SubscribeEvent
+    public static void onRenderOverlay(RenderGuiOverlayEvent.Post event) {
+        if (event.getOverlay() != VanillaGuiOverlay.HOTBAR.type()) return;
+        if (!HackConfig.globalEnabled || !isActive() || !HackConfig.aimFovCircle) return;
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+
+        double coneAngle = HackConfig.aimConeAngle;
+        if (coneAngle <= 0.0D) return;
+
+        float screenWidth = mc.getWindow().getGuiScaledWidth();
+        float screenHeight = mc.getWindow().getGuiScaledHeight();
+
+        double verticalFov = mc.options.fov().get();
+        if (verticalFov <= 1.0D) return;
+
+        double radius = (screenHeight / 2.0D) * Math.tan(Math.toRadians(coneAngle))
+                / Math.tan(Math.toRadians(verticalFov / 2.0D));
+
+        // 半径太离谱就不画，免得整屏都在填屏幕外的像素
+        if (radius > Math.max(screenWidth, screenHeight) * 3.0D) return;
+
+        int color = HackConfig.aimFovCircleColor | 0xFF000000;
+        EspRenderer.drawCircle(event.getGuiGraphics(),
+                screenWidth / 2.0F, screenHeight / 2.0F, (float) radius, color, 1.0F);
     }
 
     /**
