@@ -41,6 +41,16 @@ public class PlayerEspHandler {
     /** 上一 tick 按键是否按下（做边缘检测，避免按住时疯狂切换） */
     private static boolean wasKeyDown = false;
 
+    /** 是否已经从配置恢复过运行时状态（只做一次） */
+    private static boolean runtimeRestored = false;
+
+    /** 改运行时开关并立刻存盘 —— 重进游戏后保持这个状态 */
+    private static void setEspActive(boolean value) {
+        espActive = value;
+        HackConfig.runtimeEspActive = value;
+        HackConfig.saveRuntime();
+    }
+
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
@@ -53,20 +63,26 @@ public class PlayerEspHandler {
             return;
         }
 
+        // 进游戏第一次 tick：恢复上次按出来的开关状态
+        if (!runtimeRestored) {
+            runtimeRestored = true;
+            espActive = HackConfig.runtimeEspActive;
+        }
+
         boolean keyDown = KeyBindings.ESP_KEY.isDown();
         if (keyDown && !wasKeyDown) {
             if (!HackConfig.espEnabled) {
                 // 配置关着时按键也要有反应：按一次直接打开配置并显示
                 HackConfig.espEnabled = true;
                 HackConfig.save();
-                espActive = true;
+                setEspActive(true);
             } else {
-                espActive = !espActive;
+                setEspActive(!espActive);
             }
         }
         wasKeyDown = keyDown;
 
-        // 配置被外部关掉时强制复位
+        // 配置被外部关掉时强制复位（只是临时隐藏，不覆盖玩家按出来的状态）
         if (!HackConfig.espEnabled) {
             espActive = false;
         }

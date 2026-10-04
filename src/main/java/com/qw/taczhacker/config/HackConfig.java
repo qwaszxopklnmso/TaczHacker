@@ -375,6 +375,48 @@ public class HackConfig {
             .define("tacz.noRecoil", true);
 
     // ============================================================
+    // 运行时开关（按键切换出来的状态，持久化用）
+    // ============================================================
+    // 这些不是功能总开关，而是「按 J / K / N / H / X / G / B 切出来的那个状态」。
+    // 单独存一份是为了重进游戏后保持上次按出来的状态 —— 以前是 static 字段，
+    // 一关游戏就全变回默认的 OFF，每次进游戏都得重新按一遍。
+    // 不进 Cloth Config UI（那个界面只列上面的功能项），手改它们没有意义。
+    private static final ForgeConfigSpec.BooleanValue RUNTIME_AIM_ACTIVE = BUILDER
+            .comment("运行时状态：功能1 静默自瞄的 N 键开关（按键时自动保存）",
+                    "Runtime state: silent aim N-key toggle (saved automatically)")
+            .define("runtime.aimActive", true);
+
+    private static final ForgeConfigSpec.BooleanValue RUNTIME_FAKEROT_ACTIVE = BUILDER
+            .comment("运行时状态：功能2 低头转圈的 H 键开关（按键时自动保存）",
+                    "Runtime state: fake rotation H-key toggle (saved automatically)")
+            .define("runtime.fakerotActive", false);
+
+    private static final ForgeConfigSpec.BooleanValue RUNTIME_XRAY_ACTIVE = BUILDER
+            .comment("运行时状态：功能4 透视的 X 键开关（按键时自动保存）",
+                    "Runtime state: xray X-key toggle (saved automatically)")
+            .define("runtime.xrayActive", false);
+
+    private static final ForgeConfigSpec.BooleanValue RUNTIME_FLIGHT_ACTIVE = BUILDER
+            .comment("运行时状态：功能5 飞行挂的 G 键开关（仅 toggle 模式；按住模式不存）",
+                    "Runtime state: flight G-key toggle (toggle mode only)")
+            .define("runtime.flightActive", false);
+
+    private static final ForgeConfigSpec.BooleanValue RUNTIME_FULLBRIGHT_ACTIVE = BUILDER
+            .comment("运行时状态：功能6 全亮的 B 键开关（按键时自动保存）",
+                    "Runtime state: fullbright B-key toggle (saved automatically)")
+            .define("runtime.fullbrightActive", false);
+
+    private static final ForgeConfigSpec.BooleanValue RUNTIME_ESP_ACTIVE = BUILDER
+            .comment("运行时状态：功能8 ESP 的 J 键开关（按键时自动保存）",
+                    "Runtime state: ESP J-key toggle (saved automatically)")
+            .define("runtime.espActive", false);
+
+    private static final ForgeConfigSpec.BooleanValue RUNTIME_NAMETAGS_ACTIVE = BUILDER
+            .comment("运行时状态：功能9 信息牌的 K 键开关（按键时自动保存）",
+                    "Runtime state: nametags K-key toggle (saved automatically)")
+            .define("runtime.nametagsActive", false);
+
+    // ============================================================
     // 构建 SPEC
     // ============================================================
     public static final ForgeConfigSpec SPEC = BUILDER.build();
@@ -479,7 +521,36 @@ public class HackConfig {
         // 附加：Tacz 无后坐力
         TACZ_NO_RECOIL.set(taczNoRecoil);
 
+        // 运行时开关
+        RUNTIME_AIM_ACTIVE.set(runtimeAimActive);
+        RUNTIME_FAKEROT_ACTIVE.set(runtimeFakerotActive);
+        RUNTIME_XRAY_ACTIVE.set(runtimeXrayActive);
+        RUNTIME_FLIGHT_ACTIVE.set(runtimeFlightActive);
+        RUNTIME_FULLBRIGHT_ACTIVE.set(runtimeFullbrightActive);
+        RUNTIME_ESP_ACTIVE.set(runtimeEspActive);
+        RUNTIME_NAMETAGS_ACTIVE.set(runtimeNameTagsActive);
+
         // 写入文件
+        modConfig.save();
+    }
+
+    /**
+     * 只写运行时开关（按键切换时调用）
+     *
+     * 特意不复用 save()：那个方法会把所有 UI 字段同步回 ConfigValue，
+     * 玩家正在配置界面里改了还没保存的值会被一起写进文件。
+     */
+    public static void saveRuntime() {
+        if (modConfig == null) return;
+
+        RUNTIME_AIM_ACTIVE.set(runtimeAimActive);
+        RUNTIME_FAKEROT_ACTIVE.set(runtimeFakerotActive);
+        RUNTIME_XRAY_ACTIVE.set(runtimeXrayActive);
+        RUNTIME_FLIGHT_ACTIVE.set(runtimeFlightActive);
+        RUNTIME_FULLBRIGHT_ACTIVE.set(runtimeFullbrightActive);
+        RUNTIME_ESP_ACTIVE.set(runtimeEspActive);
+        RUNTIME_NAMETAGS_ACTIVE.set(runtimeNameTagsActive);
+
         modConfig.save();
     }
 
@@ -573,6 +644,15 @@ public class HackConfig {
 
     // 附加：Tacz 无后坐力
     public static boolean taczNoRecoil;
+
+    // 运行时开关（按键切换出来的状态，持久化）
+    public static boolean runtimeAimActive;
+    public static boolean runtimeFakerotActive;
+    public static boolean runtimeXrayActive;
+    public static boolean runtimeFlightActive;
+    public static boolean runtimeFullbrightActive;
+    public static boolean runtimeEspActive;
+    public static boolean runtimeNameTagsActive;
 
     /**
      * 配置变更时刷新缓存
@@ -673,6 +753,15 @@ public class HackConfig {
 
             // 附加：Tacz 无后坐力
             taczNoRecoil = TACZ_NO_RECOIL.get();
+
+            // 运行时开关（恢复上次按出来的状态）
+            runtimeAimActive = RUNTIME_AIM_ACTIVE.get();
+            runtimeFakerotActive = RUNTIME_FAKEROT_ACTIVE.get();
+            runtimeXrayActive = RUNTIME_XRAY_ACTIVE.get();
+            runtimeFlightActive = RUNTIME_FLIGHT_ACTIVE.get();
+            runtimeFullbrightActive = RUNTIME_FULLBRIGHT_ACTIVE.get();
+            runtimeEspActive = RUNTIME_ESP_ACTIVE.get();
+            runtimeNameTagsActive = RUNTIME_NAMETAGS_ACTIVE.get();
 
             LOGGER.debug("TaczHacker 配置已刷新");
         }

@@ -69,6 +69,9 @@ public class FullbrightHandler {
         boolean isKeyDown = KeyBindings.FULLBRIGHT_KEY.isDown();
         if (isKeyDown && !wasKeyDown) {
             fullbrightActive = !fullbrightActive;
+            // 立刻存盘，重进游戏保持这个状态
+            HackConfig.runtimeFullbrightActive = fullbrightActive;
+            HackConfig.saveRuntime();
             if (fullbrightActive) {
                 enableFullbright(mc);
             } else {
@@ -95,14 +98,20 @@ public class FullbrightHandler {
      */
     private static void onPlayerJoinWorld(Minecraft mc) {
         // 重置状态变量，确保 toggle 功能可正常工作
-        fullbrightActive = false;
         hasSavedGamma = false;
         wasKeyDown = false;
         savedGamma = 1.0;
 
         // 无条件重置为原版默认 gamma 值
         mc.options.gamma().set(0.5);
-        LOGGER.debug("[TaczHacker][全亮] 进世界，gamma 已重置为 0.5");
+
+        // 恢复上次按 B 切出来的状态：以前这里无条件置 false，
+        // 结果每次重进游戏全亮都被重置掉，得重新按一遍
+        fullbrightActive = HackConfig.runtimeFullbrightActive;
+        if (fullbrightActive) {
+            enableFullbright(mc);
+        }
+        LOGGER.debug("[TaczHacker][全亮] 进世界，gamma 已重置为 0.5，全亮状态={}", fullbrightActive);
     }
 
     /**

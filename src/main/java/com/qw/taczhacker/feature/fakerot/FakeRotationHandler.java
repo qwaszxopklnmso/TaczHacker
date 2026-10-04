@@ -26,6 +26,9 @@ public class FakeRotationHandler {
     /** 当前是否启用低头转圈（H 键开关，代表玩家意图） */
     private static boolean enabled = false;
 
+    /** 是否已经从配置恢复过运行时状态（只做一次） */
+    private static boolean runtimeRestored = false;
+
     /**
      * 临时暂停剩余 tick 数。
      *
@@ -82,6 +85,17 @@ public class FakeRotationHandler {
             return;
         }
 
+        // 进游戏第一次 tick：恢复上次按出来的开关状态。
+        // 这时候是「玩家意图」，所以立即发一个包让服务器知道假旋转，
+        // 跟刚按 H 打开时一样（ticksSinceLastPacket 设成极大值 = 下一 tick 立即发包）
+        if (!runtimeRestored) {
+            runtimeRestored = true;
+            if (HackConfig.runtimeFakerotActive) {
+                enabled = true;
+                ticksSinceLastPacket = Integer.MAX_VALUE;
+            }
+        }
+
         // 功能3（视角锁定自瞄）按住时：临时暂停转圈，而不是把开关关掉。
         // 松开按键后暂停自动结束，转圈按原开关状态继续。
         if (AimbotHandler.isActive()) {
@@ -99,10 +113,10 @@ public class FakeRotationHandler {
         while (KeyBindings.FAKEROT_KEY.consumeClick()) {
             if (!enabled) {
                 // 刚开启：立即发送一个包让服务器知道假旋转
-                enabled = true;
+                setEnabled(true);
                 ticksSinceLastPacket = Integer.MAX_VALUE; // 确保下一 tick 立即发包
             } else {
-                enabled = false;
+                setEnabled(false);
             }
         }
 
@@ -177,9 +191,14 @@ public class FakeRotationHandler {
     }
 
     /**
-     * 设置启用状态
+     * 设置启用状态（代表玩家意图，会立刻存盘 —— 重进游戏后保持）
+     *
+     * 注意：因为总开关被关掉而做的强制复位不走这里，
+     * 那种只是临时的，不该覆盖掉玩家按出来的状态。
      */
     public static void setEnabled(boolean enabled) {
         FakeRotationHandler.enabled = enabled;
+        HackConfig.runtimeFakerotActive = enabled;
+        HackConfig.saveRuntime();
     }
 }

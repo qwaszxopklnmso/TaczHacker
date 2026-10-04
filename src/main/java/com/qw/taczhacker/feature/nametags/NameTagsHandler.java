@@ -52,6 +52,16 @@ public class NameTagsHandler {
     /** 上一 tick 按键是否按下（边缘检测） */
     private static boolean wasKeyDown = false;
 
+    /** 是否已经从配置恢复过运行时状态（只做一次） */
+    private static boolean runtimeRestored = false;
+
+    /** 改运行时开关并立刻存盘 —— 重进游戏后保持这个状态 */
+    private static void setActive(boolean value) {
+        active = value;
+        HackConfig.runtimeNameTagsActive = value;
+        HackConfig.saveRuntime();
+    }
+
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
@@ -64,6 +74,12 @@ public class NameTagsHandler {
             return;
         }
 
+        // 进游戏第一次 tick：恢复上次按出来的开关状态
+        if (!runtimeRestored) {
+            runtimeRestored = true;
+            active = HackConfig.runtimeNameTagsActive;
+        }
+
         boolean keyDown = KeyBindings.NAMETAGS_KEY.isDown();
         if (keyDown && !wasKeyDown) {
             if (!HackConfig.nameTagsEnabled) {
@@ -71,14 +87,14 @@ public class NameTagsHandler {
                 // 否则按键被配置静默吞掉，用户只会看到「按了没反应」
                 HackConfig.nameTagsEnabled = true;
                 HackConfig.save();
-                active = true;
+                setActive(true);
             } else {
-                active = !active;
+                setActive(!active);
             }
         }
         wasKeyDown = keyDown;
 
-        // 配置被外部关掉时强制复位
+        // 配置被外部关掉时强制复位（只是临时隐藏，不覆盖玩家按出来的状态）
         if (!HackConfig.nameTagsEnabled) {
             active = false;
         }

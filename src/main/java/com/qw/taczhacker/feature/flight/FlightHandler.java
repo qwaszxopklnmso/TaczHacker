@@ -27,6 +27,9 @@ public class FlightHandler {
     /** 上次按键状态（用于检测上升沿） */
     private static boolean wasKeyDown = false;
 
+    /** 是否已经从配置恢复过运行时状态（只做一次） */
+    private static boolean runtimeRestored = false;
+
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
@@ -47,12 +50,23 @@ public class FlightHandler {
             return;
         }
 
+        // 进游戏第一次 tick：恢复上次按出来的状态。
+        // 只有 toggle 模式有「按出来的状态」，hold 模式的飞行状态就是按键本身，不存
+        if (!runtimeRestored) {
+            runtimeRestored = true;
+            if (HackConfig.flightToggleMode) {
+                flying = HackConfig.runtimeFlightActive;
+            }
+        }
+
         boolean keyDown = KeyBindings.FLIGHT_KEY.isDown();
 
         if (HackConfig.flightToggleMode) {
             // 开关切换模式：按一次开/关
             if (keyDown && !wasKeyDown) {
                 flying = !flying;
+                HackConfig.runtimeFlightActive = flying;
+                HackConfig.saveRuntime();
             }
         } else {
             // 按住模式：按住键才飞

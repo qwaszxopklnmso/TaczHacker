@@ -48,6 +48,9 @@ public class AimHandler {
      */
     private static volatile boolean aimActive = true;
 
+    /** 是否已经从配置恢复过运行时状态（只做一次） */
+    private static boolean runtimeRestored = false;
+
     /** 上一 tick 按键是否按下（边缘检测） */
     private static boolean wasKeyDown = false;
 
@@ -56,6 +59,15 @@ public class AimHandler {
      */
     public static boolean isActive() {
         return HackConfig.globalEnabled && HackConfig.aimEnabled && aimActive;
+    }
+
+    /**
+     * 改运行时开关并立刻存盘 —— 重进游戏后保持这个状态
+     */
+    private static void setAimActive(boolean value) {
+        aimActive = value;
+        HackConfig.runtimeAimActive = value;
+        HackConfig.saveRuntime();
     }
 
     /**
@@ -69,15 +81,21 @@ public class AimHandler {
         if (mc.player == null) return;
         if (!HackConfig.globalEnabled) return;
 
+        // 进游戏第一次 tick：恢复上次按出来的开关状态
+        if (!runtimeRestored) {
+            runtimeRestored = true;
+            aimActive = HackConfig.runtimeAimActive;
+        }
+
         boolean keyDown = KeyBindings.AIM_KEY.isDown();
         if (keyDown && !wasKeyDown) {
             if (!HackConfig.aimEnabled) {
                 // 配置关着时按键也要有反应：按一次直接打开配置
                 HackConfig.aimEnabled = true;
                 HackConfig.save();
-                aimActive = true;
+                setAimActive(true);
             } else {
-                aimActive = !aimActive;
+                setAimActive(!aimActive);
             }
         }
         wasKeyDown = keyDown;

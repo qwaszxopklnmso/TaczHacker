@@ -10,6 +10,7 @@ import com.qw.taczhacker.feature.fullbright.FullbrightHandler;
 import com.qw.taczhacker.feature.nametags.NameTagsHandler;
 import com.qw.taczhacker.feature.parcool.ParCoolLongSlide;
 import com.qw.taczhacker.feature.xray.XrayHandler;
+import com.qw.taczhacker.network.ServerDetector;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraftforge.api.distmarker.Dist;
@@ -30,16 +31,24 @@ import java.util.List;
 @Mod.EventBusSubscriber(modid = "taczhacker", value = Dist.CLIENT)
 public class HudOverlayHandler {
 
-    /** 功能条目：名称、配置开关、运行时状态 */
+    /** 功能条目：名称、配置开关、运行时状态、配置关闭时是否也显示 */
     private static class Entry {
         final String name;
         final java.util.function.BooleanSupplier configEnabled;
         final java.util.function.BooleanSupplier runtimeActive;
+        final boolean alwaysShow;
 
-        Entry(String name, java.util.function.BooleanSupplier configEnabled, java.util.function.BooleanSupplier runtimeActive) {
+        Entry(String name, java.util.function.BooleanSupplier configEnabled,
+              java.util.function.BooleanSupplier runtimeActive) {
+            this(name, configEnabled, runtimeActive, false);
+        }
+
+        Entry(String name, java.util.function.BooleanSupplier configEnabled,
+              java.util.function.BooleanSupplier runtimeActive, boolean alwaysShow) {
             this.name = name;
             this.configEnabled = configEnabled;
             this.runtimeActive = runtimeActive;
+            this.alwaysShow = alwaysShow;
         }
     }
 
@@ -61,12 +70,19 @@ public class HudOverlayHandler {
         // 功能7：ParCool 长滑铲（运行时状态在 ParCool 内部，这里显示功能开关）
         entries.add(new Entry("长滑铲", () -> HackConfig.parcoolLongSlideEnabled,
                 () -> ParCoolLongSlide.isForcing()));
-        // 功能8：ESP（连线/方框/骨骼/发光，按 J 切换）
+        // 功能8：ESP（连线/方框/骨骼，按 J 切换）
         entries.add(new Entry("ESP", () -> HackConfig.espEnabled,
                 () -> PlayerEspHandler.isEspActive()));
         // 功能9：实体信息牌（按 K 切换）
         entries.add(new Entry("信息牌", () -> HackConfig.nameTagsEnabled,
                 () -> NameTagsHandler.isActive()));
+        // 单机专属的两个「真·」：没有按键，纯配置项，所以 alwaysShow。
+        // 显示的是「实际生效」而不是「本地配置开着」—— 联机时服务端没开就是 OFF。
+        // 不 alwaysShow 的话，默认关着时这两行根本不出现，等于没法在 HUD 里看到它们
+        entries.add(new Entry("追踪弹", () -> HackConfig.aimSinglePlayerHomingBullet,
+                () -> ServerDetector.isServerHomingEnabled(), true));
+        entries.add(new Entry("穿墙子弹", () -> HackConfig.aimSinglePlayerBulletPenetration,
+                () -> ServerDetector.isServerPenetrationEnabled(), true));
     }
 
     @SubscribeEvent
@@ -84,11 +100,10 @@ public class HudOverlayHandler {
         int y = 4;
 
         for (Entry entry : entries) {
-            boolean configOn = entry.configEnabled.getAsBoolean();
             boolean active = entry.runtimeActive.getAsBoolean();
 
-            // 配置关闭时跳过该行
-            if (!configOn) continue;
+            // 配置关闭时跳过该行（标记了 alwaysShow 的除外）
+            if (!entry.alwaysShow && !entry.configEnabled.getAsBoolean()) continue;
 
             String text;
             int color;

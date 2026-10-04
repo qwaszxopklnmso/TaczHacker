@@ -29,6 +29,9 @@ public class XrayHandler {
     private static volatile boolean xrayActive = false;
     private static boolean wasKeyDown = false;
 
+    /** 是否已经从配置恢复过运行时状态（只做一次） */
+    private static boolean runtimeRestored = false;
+
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
@@ -43,9 +46,23 @@ public class XrayHandler {
             return;
         }
 
+        // 进游戏第一次 tick：恢复上次按出来的状态。
+        // 区块得重新构建一遍，否则进世界时那些已经按「不透视」建好的区块不会刷新
+        if (!runtimeRestored) {
+            runtimeRestored = true;
+            if (HackConfig.runtimeXrayActive) {
+                xrayActive = true;
+                if (mc.level != null && mc.levelRenderer != null) {
+                    forceReloadChunks(mc.level, mc.levelRenderer, mc.player.blockPosition());
+                }
+            }
+        }
+
         boolean keyDown = KeyBindings.XRAY_KEY.isDown();
         if (keyDown && !wasKeyDown) {
             xrayActive = !xrayActive;
+            HackConfig.runtimeXrayActive = xrayActive;
+            HackConfig.saveRuntime();
             if (mc.level != null && mc.levelRenderer != null) {
                 forceReloadChunks(mc.level, mc.levelRenderer, mc.player.blockPosition());
             }
