@@ -68,13 +68,17 @@ public class ServerDetector {
      * 服务端是否真的会用子弹方向修改来实现自瞄
      *
      * 只有这个为 true 时，客户端才可以跳过发送假旋转包。
-     * 服务端装了 mod 但把 aim.enabled 关掉时返回 false，客户端仍然走转视角方案。
      *
-     * 单机/局域网：服务端就是本进程，直接读实时配置（改了配置立刻生效，不用重进世界）。
+     * 单机/局域网固定返回 false：服务端改弹道那条路要靠 AimHandler.pendingAngles 这个
+     * 静态字段在客户端与服务端之间递角度，跨度一整个 tick，实测并不可靠（客户端那次
+     * shoot 调用会把它取空，服务端就读到 null）。所以这里让客户端照常发假旋转包 ——
+     * 那条路改的是"服务端看到的朝向"，全在客户端手里，不需要跨线程传状态。
+     *
+     * 远程服务器：取决于握手报回来的能力位。
      */
     public static boolean isServerAimAvailable() {
         if (isSinglePlayer) {
-            return HackConfig.aimEnabled;
+            return false;
         }
         return isServerHasTaczHacker() && serverAimEnabled;
     }
