@@ -242,8 +242,10 @@ public class HackConfig {
             .defineInRange("esp.maxDistance", 128.0, 8.0, 512.0);
 
     private static final ForgeConfigSpec.IntValue ESP_COLOR = BUILDER
-            .comment("ESP 线条颜色（ARGB，默认 0xFF00FF00 不透明绿）",
-                    "ESP line color in ARGB (default 0xFF00FF00 opaque green)")
+            .comment("ESP 线条颜色（不透明）。配置界面里填 #RRGGBB 六位十六进制，\n"
+                    + "存到本文件里是带 FF alpha 的十进制整数。",
+                    "ESP line color (opaque). Enter #RRGGBB hex in the config screen; "
+                    + "stored here as a decimal int with FF alpha.")
             .defineInRange("esp.color", 0xFF00FF00, Integer.MIN_VALUE, Integer.MAX_VALUE);
 
     private static final ForgeConfigSpec.DoubleValue ESP_LINE_WIDTH = BUILDER
