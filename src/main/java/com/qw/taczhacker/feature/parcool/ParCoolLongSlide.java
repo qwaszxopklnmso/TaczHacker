@@ -62,6 +62,18 @@ public final class ParCoolLongSlide {
     }
 
     /**
+     * 是否应该忽略 ParCool 4.0 技能树的学习要求（供 ActionCapabilities#can 注入使用）
+     *
+     * ParCool 4.0 的 Parkourability#permit 里
+     *   learned = !needLearning || !enableSkillTree || capabilities.can(entry)
+     * 技能树默认开启（enable_skill_tree = true）且 capabilities 默认全 false，
+     * 于是所有动作的 isPossible() 都是 false —— 滑铲（快跑+爬行+滑铲三个动作）自然起不来。
+     */
+    public static boolean shouldUnlockAllActions() {
+        return HackConfig.globalEnabled && HackConfig.parcoolUnlockAllActions;
+    }
+
+    /**
      * 滑铲方向是否跟随视角（供 Slide 注入使用）
      */
     public static boolean isSteerableSlide() {

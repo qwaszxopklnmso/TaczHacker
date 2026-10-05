@@ -254,6 +254,21 @@ public class HackConfig {
                     + "Requires ParCool.")
             .define("parcool.infiniteStamina", true);
 
+    private static final ForgeConfigSpec.BooleanValue PARCOOL_UNLOCK_ALL_ACTIONS = BUILDER
+            .comment("功能7附属：解锁 ParCool 全部动作（跳过技能树的学习要求）。\n"
+                    + "ParCool 4.0 新增技能树且默认开启（enable_skill_tree = true），除抓钩外每个动作都要花经验等级学习\n"
+                    + "（快跑/爬行各 1 级、滑铲 10 级…），没学过的动作起不了手 —— 表现就是滑铲完全没反应。\n"
+                    + "开启本项后 ParCool 认为你已经学会所有动作，不用花经验。\n"
+                    + "技能树开关本身还在：ParCool 的 enable_skill_tree 与每个动作的 available 仍然生效。\n"
+                    + "起手判定在本地客户端做，所以单机、以及服务端没装本 mod 的联机都生效；\n"
+                    + "但由服务端判定起手的动作（ParCoolActions 里 triggeredSide = SERVER 的，如 Breakfall）\n"
+                    + "要在服务端也装本 mod 才会解锁。",
+                    "Unlock every ParCool action without learning it in the 4.0 skill tree "
+                    + "(enabled by default; unlearned actions including Slide cannot start at all). "
+                    + "Client-side decision, so it also works when the server has no TaczHacker; "
+                    + "install it on the server too for server-triggered actions such as Breakfall.")
+            .define("parcool.unlockAllActions", true);
+
     // ============================================================
     // 功能8：玩家 ESP（准心连线）
     // ============================================================
@@ -512,6 +527,7 @@ public class HackConfig {
         PARCOOL_LONG_SLIDE_ENABLED.set(parcoolLongSlideEnabled);
         PARCOOL_INFINITE_STAMINA.set(parcoolInfiniteStamina);
         PARCOOL_STEERABLE_SLIDE.set(parcoolSteerableSlide);
+        PARCOOL_UNLOCK_ALL_ACTIONS.set(parcoolUnlockAllActions);
 
         // 功能8
         ESP_ENABLED.set(espEnabled);
@@ -636,6 +652,7 @@ public class HackConfig {
     public static boolean parcoolLongSlideEnabled;
     public static boolean parcoolInfiniteStamina;
     public static boolean parcoolSteerableSlide;
+    public static boolean parcoolUnlockAllActions;
 
     // 功能8：玩家 ESP
     public static boolean espEnabled;
@@ -744,6 +761,7 @@ public class HackConfig {
             parcoolLongSlideEnabled = PARCOOL_LONG_SLIDE_ENABLED.get();
             parcoolInfiniteStamina = PARCOOL_INFINITE_STAMINA.get();
             parcoolSteerableSlide = PARCOOL_STEERABLE_SLIDE.get();
+            parcoolUnlockAllActions = PARCOOL_UNLOCK_ALL_ACTIONS.get();
 
             // 功能8
             espEnabled = ESP_ENABLED.get();

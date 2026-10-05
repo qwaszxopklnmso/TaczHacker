@@ -315,6 +315,16 @@ public class ConfigScreen {
                 .setSaveConsumer(v -> HackConfig.parcoolLongSlideEnabled = v)
                 .build());
         parcoolCat.addEntry(e.startBooleanToggle(
+                Component.literal("解锁 ParCool 全部动作"),
+                HackConfig.parcoolUnlockAllActions
+        ).setTooltip(Component.literal("ParCool 4.0 新增技能树且默认开启，每个动作都要花经验等级学习\n"
+                + "（快跑/爬行各 1 级、滑铲 10 级…），没学过的动作起不了手——\n"
+                + "表现就是按滑铲键完全没反应，和「长滑铲开关」无关。\n"
+                + "开启本项后不用花经验就当成已学会所有动作（技能树和动作的 available 开关仍然有效）。\n"
+                + "起手判定在客户端做，服务端没装本 mod 也生效；服务端判定起手的动作（如 Breakfall）需双端都装。"))
+                .setSaveConsumer(v -> HackConfig.parcoolUnlockAllActions = v)
+                .build());
+        parcoolCat.addEntry(e.startBooleanToggle(
                 Component.literal("滑铲方向跟随视角"),
                 HackConfig.parcoolSteerableSlide
         ).setTooltip(Component.literal("ParCool 原版滑铲方向在起滑瞬间就固定了（转视角不会转向）。\n"

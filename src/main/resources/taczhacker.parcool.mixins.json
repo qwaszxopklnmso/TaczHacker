@@ -4,6 +4,7 @@
   "package": "com.qw.taczhacker.mixin",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
+    "ParCoolCapabilitiesMixin",
     "ParCoolSlideMixin",
     "ParCoolCrawlMixin",
     "ParCoolStaminaMixin"
