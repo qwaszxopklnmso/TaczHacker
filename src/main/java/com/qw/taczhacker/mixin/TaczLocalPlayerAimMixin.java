@@ -17,7 +17,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * 开镜键（AimKey）按下、按住、松手，最后都走到这个方法，
  * 所以在这里拦一刀就能同时挡住「本地状态」和「原版开镜包」两件事。
  *
- * 假开镜模式下我们只发自己的 C2SFakeAimPacket（服务端拿它算散布档位），
+ * 自动假开镜生效时（功能1 开着 + 假开镜开关开着 + 服务端装着本 mod），
+ * 这个方法整个被吞掉，我们只发自己的 C2SFakeAimPacket（服务端拿它算散布档位），
  * 本地 clientIsAiming 保持 false —— 于是：
  *   - 相机 FOV 不缩（CameraSetupEvent 本地分支读 clientAimingProgress）
  *   - 鼠标灵敏度不变（MouseHandlerMixin 读的是同步值，服务端从没被通知过）

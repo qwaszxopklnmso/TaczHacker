@@ -382,21 +382,24 @@ public class HackConfig {
             .define("tacz.noRecoil", true);
 
     // ============================================================
-    // 附加功能：Tacz 假开镜（服务端认为你开镜，客户端什么都没变）
+    // 附加功能：Tacz 自动假开镜（服务端认为你开镜，客户端什么都没变）
     // ============================================================
     private static final ForgeConfigSpec.BooleanValue TACZ_FAKE_AIM = BUILDER
-            .comment("假开镜：按住/切换开镜键时，只有服务端认为你在开镜（散布按开镜档算），\n"
+            .comment("自动假开镜：功能1（开火静默自瞄）生效时自动进入假开镜，\n"
+                    + "也就是「服务端认为你在开镜」（散布按开镜档算），不用按右键。\n"
                     + "客户端这边 FOV 不缩、灵敏度不变、移速不减、也不出瞄准镜画面。\n"
                     + "原理：客户端不发 Tacz 的开镜包（ClientMessagePlayerAim），也不改本地 clientIsAiming，\n"
                     + "只把「我在假开镜」告诉服务端；服务端那侧在算散布档位时按开镜（AIM）取，\n"
                     + "服务端的 isAiming / aimingProgress 全程保持 false / 0，\n"
                     + "所以移速惩罚、冲刺打断、开镜动画这些统统不会发生。\n"
                     + "⚠ 需要服务端也装本 mod；服务端没装时这个开关不起作用，开镜键退回 Tacz 原版行为。\n"
-                    + "⚠ 开启后开镜键不再进入真正的瞄准镜（想看瞄准镜画面请先关掉这个开关）。",
-                    "Fake ADS: the server thinks you are aiming (bullet spread uses the AIM tier) while your "
+                    + "⚠ 假开镜生效期间按右键不再进入真正的瞄准镜（想看瞄准镜请先关掉这个开关或关掉功能1）。",
+                    "Automatic fake ADS: while feature 1 (silent aim) is active, the server thinks you are "
+                    + "aiming (bullet spread uses the AIM tier) without pressing the aim key at all. Your "
                     + "client keeps everything unchanged - no FOV zoom, no sensitivity change, no movement "
                     + "slowdown, no scope overlay. The server's isAiming / aimingProgress stay false / 0. "
-                    + "Requires TaczHacker on the server. While enabled, the aim key no longer opens a real scope.")
+                    + "Requires TaczHacker on the server. While it is active the aim key no longer opens a "
+                    + "real scope.")
             .define("tacz.fakeAim", false);
 
     // ============================================================

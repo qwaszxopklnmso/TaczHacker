@@ -490,15 +490,16 @@ public class ConfigScreen {
                 .setSaveConsumer(v -> HackConfig.taczNoRecoil = v)
                 .build());
         miscCat.addEntry(e.startBooleanToggle(
-                Component.literal("假开镜（Tacz）"),
+                Component.literal("自动假开镜（Tacz）"),
                 HackConfig.taczFakeAim
-        ).setTooltip(Component.literal("按住右键时只让服务端认为你在开镜，精度按开镜档算，\n"
+        ).setTooltip(Component.literal("功能1（开火静默自瞄）生效时自动进入假开镜，不用按右键：\n"
+                + "服务端认为你在开镜，精度按开镜档算，\n"
                 + "但 FOV 不缩、鼠标灵敏度不变、移速不减、也不出瞄准镜画面。\n"
                 + "服务端的 isAiming / aimingProgress 全程保持 false / 0，\n"
                 + "所以移速惩罚和冲刺打断都不会触发。\n"
                 + "原理：拦掉 Tacz 的开镜包，只发本 mod 的「我在假开镜」包。\n"
                 + "⚠ 需要服务端也装本 mod；没装时这个开关不起作用，开镜键退回原版。\n"
-                + "⚠ 开启后开镜键不再进入真正的瞄准镜。"))
+                + "⚠ 假开镜生效期间按右键不会进入真正的瞄准镜。"))
                 .setSaveConsumer(v -> HackConfig.taczFakeAim = v)
                 .build());
 
