@@ -2,6 +2,7 @@ package com.qw.taczhacker.feature.hud;
 
 import com.qw.taczhacker.config.HackConfig;
 import com.qw.taczhacker.feature.aim.AimHandler;
+import com.qw.taczhacker.feature.aim.FakeAimHandler;
 import com.qw.taczhacker.feature.aimbot.AimbotHandler;
 import com.qw.taczhacker.feature.esp.PlayerEspHandler;
 import com.qw.taczhacker.feature.fakerot.FakeRotationHandler;
@@ -83,6 +84,9 @@ public class HudOverlayHandler {
                 () -> ServerDetector.isServerHomingEnabled(), true));
         entries.add(new Entry("穿墙子弹", () -> HackConfig.aimSinglePlayerBulletPenetration,
                 () -> ServerDetector.isServerPenetrationEnabled(), true));
+        // 附加：Tacz 假开镜（服务端认为你在开镜，客户端 FOV / 灵敏度 / 移速全不变）
+        entries.add(new Entry("假开镜", () -> HackConfig.taczFakeAim,
+                () -> FakeAimHandler.isFakeAiming(), true));
     }
 
     @SubscribeEvent

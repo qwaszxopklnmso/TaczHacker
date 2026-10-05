@@ -4,6 +4,7 @@ import com.mojang.logging.LogUtils;
 import com.qw.taczhacker.config.ConfigScreen;
 import com.qw.taczhacker.config.HackConfig;
 
+import com.qw.taczhacker.network.C2SFakeAimPacket;
 import com.qw.taczhacker.network.C2SHandshakePacket;
 import com.qw.taczhacker.network.S2CHandshakeAckPacket;
 import net.minecraft.resources.ResourceLocation;
@@ -83,6 +84,10 @@ public class Taczhacker {
         CHANNEL.registerMessage(id++, S2CHandshakeAckPacket.class,
                 S2CHandshakeAckPacket::encode, S2CHandshakeAckPacket::decode,
                 S2CHandshakeAckPacket::handle);
+        // 假开镜状态包（客户端 → 服务端）
+        CHANNEL.registerMessage(id++, C2SFakeAimPacket.class,
+                C2SFakeAimPacket::encode, C2SFakeAimPacket::decode,
+                C2SFakeAimPacket::handle);
         LOGGER.info("TaczHacker 网络通道初始化完成");
     }
 

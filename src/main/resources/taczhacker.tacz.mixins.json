@@ -5,10 +5,12 @@
   "compatibilityLevel": "JAVA_17",
   "mixins": [
     "TimelessBulletEntityMixin",
-    "LivingEntityShootMixin"
+    "LivingEntityShootMixin",
+    "InaccuracyTypeMixin"
   ],
   "client": [
-    "TaczCameraRecoilMixin"
+    "TaczCameraRecoilMixin",
+    "TaczLocalPlayerAimMixin"
   ],
   "injectors": {
     "defaultRequire": 1

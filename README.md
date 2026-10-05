@@ -19,17 +19,18 @@
 | ESP | J | 准心连线 / 方框 / 骨骼，可在配置里分别开关 |
 | 实体信息牌 | K | 目标头顶显示名字 / 血量 / 距离 / 血条 |
 | 无后坐力（Tacz） | 配置项开关 | 去掉开火时画面的上跳，纯客户端 |
+| 假开镜（Tacz） | 配置项开关 | 服务端认为你在开镜，散布按开镜档算；客户端 FOV / 灵敏度 / 移速全不变（需服务端也装本 mod） |
 
 注：都可以在cloth config api的模组设置中关闭
 
 按出来的开关状态（N / H / X / G / B / J / K）会写进配置，**重进游戏后保持**，不用每次进游戏重按一遍。
-屏幕左上角那份状态里，`追踪弹` / `穿墙子弹` 两行显示的是**实际是否生效**——联机时服务端没开就是 OFF。
+屏幕左上角那份状态里，`追踪弹` / `穿墙子弹` / `假开镜` 三行是**常驻显示**的，显示的是**实际是否生效**——联机时服务端没开（或没装本 mod）就是 OFF。
 
 ## 前置依赖
 
 首次构建时自动下载到 `libs/`：
 
-- [Tacz 1.20.1-1.1.8-hotfix](https://www.curseforge.com/minecraft/mc-mods/timeless-and-classics-zero)
+- [Tacz 1.20.1-1.1.8-hotfix2](https://www.curseforge.com/minecraft/mc-mods/timeless-and-classics-zero)
 - [Embeddium 0.3.31+mc1.20.1](https://www.curseforge.com/minecraft/mc-mods/embeddium)
 - [Cloth Config API 11.1.136-forge](https://www.curseforge.com/minecraft/mc-mods/cloth-config)
 - [ParCool 1.20.1-3.4.3.3](https://modrinth.com/mod/parcool)（功能7 长滑铲用；既是编译期依赖，也会被 `installToMods` 一并装进 mods）
@@ -70,6 +71,17 @@ gradle installToMods
 - 无后坐力只去掉**画面**的上跳：Tacz 的后坐力是渲染层的摄像机偏移，本来就不影响弹道
 - **无扩散做不到**：Tacz 的子弹散布是服务端生成子弹时算的（`ModernKineticGunItem.doBulletSpread`），
   客户端发出去的 `ClientMessagePlayerShoot` 里只有 timestamp 和 chargeProgress，连方向都不带
+- **假开镜（Tacz）**：拦掉 Tacz 的开镜包，只发本 mod 的「我在假开镜」状态包，
+  服务端在散布档位判定（`InaccuracyType#getInaccuracyType`）里按 `AIM` 档取
+  —— 默认散布 `AIM 0.15` vs `STAND 5.0`，所以精度按开镜算。
+  代价与边界：
+  - **需要服务端也装本 mod**，服务端没装时功能自动失效，开镜键退回 Tacz 原版行为
+  - 服务端自己的 `isAiming` / `aimingProgress` 全程保持 `false` / `0`，
+    所以移速惩罚、冲刺打断、开镜动画、灵敏度同步统统不触发（这正是需求要的）
+  - 因此**开镜键不再进入真正的瞄准镜画面**（本地 `clientIsAiming` 一直是 false）；
+    想看瞄准镜请先关掉这个开关
+  - 枪包 Lua 脚本如果自己去读 `api:getAimingProgress()`，读到的仍是 0
+    （只保证 `calcSpread` 拿到的 `inaccuracy` 参数是开镜档）
 - 飞行挂请在无反作弊服务器使用
 
 ## 致谢与来源说明
