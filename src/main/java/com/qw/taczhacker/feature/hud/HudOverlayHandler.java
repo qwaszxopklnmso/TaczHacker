@@ -69,8 +69,10 @@ public class HudOverlayHandler {
         // 功能6：伽马值修改
         entries.add(new Entry("全亮", () -> HackConfig.fullbrightEnabled, () -> FullbrightHandler.isFullbrightActive()));
         // 功能7：ParCool 长滑铲（运行时状态在 ParCool 内部，这里显示功能开关）
+        // alwaysShow：曾经因为「长滑铲」配置开关被关着，HUD 里这一行不出现，
+        // 于是滑铲恢复原生行为（滑 1 秒就停）被当成功能失效，所以这一行改成常驻显示。
         entries.add(new Entry("长滑铲", () -> HackConfig.parcoolLongSlideEnabled,
-                () -> ParCoolLongSlide.isForcing()));
+                () -> ParCoolLongSlide.isForcing(), true));
         // 功能8：ESP（连线/方框/骨骼，按 J 切换）
         entries.add(new Entry("ESP", () -> HackConfig.espEnabled,
                 () -> PlayerEspHandler.isEspActive()));
