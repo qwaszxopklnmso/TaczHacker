@@ -15,12 +15,16 @@ import com.qw.taczhacker.config.HackConfig;
  *   - ParCoolSlideMixin  ：让 Slide#canContinue 恒为 true（滑铲不结束）
  *   - ParCoolCrawlMixin  ：滑铲期间让 Crawl#canContinue 恒为 true（父动作不掉）
  *
- * 结束滑铲（三种方式，都由客户端输入决定）：
- *   1. 按跳跃键 —— ParCool 原版就是靠跳跃退出滑铲。因为滑铲期间
- *      Slide 注册了「屏蔽跳跃」的 BehaviorEnforcer 标记，而标记的存活条件
- *      正是「动作还在进行」，所以只要不再强制持续，跳跃立刻生效。
- *   2. 松开后再按一次滑铲键（ParCool 的爬行键）
- *   3. 按本 mod 的「取消长滑铲」键（默认 Z）
+ * 结束滑铲只有一种方式（由客户端输入决定）：
+ *   松开后再按一次滑铲键（ParCool 的爬行键）
+ *
+ * 跳跃键不参与结束滑铲。ParCool 原版在起滑时会往 BehaviorEnforcer 注册
+ * 一个「屏蔽跳跃」的标记（加它的条件是「动作还在进行」，也就是只要还在滑就一直屏蔽），
+ * 所以原版滑铲期间按空格没反应。要能在滑铲中起跳就得把 cancelJump 放开，
+ * 这个由 ParCoolBehaviorEnforcerMixin 做（配置项 parcool.jumpWhileSliding）。
+ * 放开之后跳跃和滑铲可以并存：Slide.onWorkingTickInLocalClient 设置水平速度时
+ * 保留 deltaMovement 的 y 分量（`slidingVec.scale(speed).add(0, motion.y, 0)`），
+ * 所以起跳的垂直速度不会被滑铲覆盖掉。
  *
  * 这些判定（canStart / canContinue / 体力 consume）在 ParCool 里全部包在
  * player.isLocalPlayer() 分支里，**只有客户端会跑**；服务端玩家 isLocalPlayer()
@@ -79,10 +83,24 @@ public final class ParCoolLongSlide {
     }
 
     /**
-     * 当前是否真的在滑铲（供 HUD 显示）
+     * 滑铲期间是否要放开跳跃键（供 BehaviorEnforcer#cancelJump 注入使用）
+     *
+     * 只有「正在滑铲」时才放开：不在滑铲时一律走 ParCool 原生判定，
+     * 别的动作（爬行之类）该屏蔽跳跃还是照旧屏蔽。
+     */
+    public static boolean shouldAllowJump() {
+        return isEnabled() && HackConfig.parcoolJumpWhileSliding && isForcing();
+    }
+
+    /**
+     * 当前是否真的在滑铲（供 HUD 显示、以及放开跳跃时判断）
+     *
+     * 两个标记取或：slideActive 是本 tick 被 Slide 注入标上的，
+     * slideActiveLastTick 是上一 tick 的。起滑的第一个 tick 里
+     * 跳跃判定可能跑在 canContinue 之前，只看上一 tick 的话那一下跳跃会被漏掉。
      */
     public static boolean isForcing() {
-        return slideActiveLastTick && isEnabled();
+        return (slideActive || slideActiveLastTick) && isEnabled();
     }
 
     // ============================================================

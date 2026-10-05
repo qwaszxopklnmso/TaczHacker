@@ -6,6 +6,7 @@
   "mixins": [
     "ParCoolSlideMixin",
     "ParCoolCrawlMixin",
+    "ParCoolBehaviorEnforcerMixin",
     "ParCoolStaminaMixin",
     "ParCoolHungerStaminaMixin",
     "ParCoolOtherStaminaMixin"

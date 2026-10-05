@@ -3,7 +3,6 @@ package com.qw.taczhacker.mixin;
 import com.alrex.parcool.common.action.impl.Slide;
 import com.alrex.parcool.common.capability.IStamina;
 import com.alrex.parcool.common.capability.Parkourability;
-import com.qw.taczhacker.config.HackConfig;
 import com.qw.taczhacker.feature.parcool.ParCoolLongSlide;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
@@ -30,6 +29,10 @@ import java.nio.ByteBuffer;
  *   1. canContinue(HEAD)                —— 滑铲不自动结束；检测到取消输入时放行原生判定
  *   2. onWorkingTickInLocalClient(HEAD) —— 刷新滑行方向，转视角即可转向
  *   3. onStartInLocalClient(TAIL)       —— 起滑瞬间刷新一次方向
+ *
+ * 结束滑铲只有一种方式：松开后再按一次滑铲键（ParCool 的爬行键，默认 C）。
+ * 跳跃键不参与结束滑铲 —— 滑铲期间跳跃由 ParCoolBehaviorEnforcerMixin 放开，
+ * 所以按空格是起跳，不是退出滑铲。
  *
  * 为什么取消是「放行原生判定」而不是两端都直接返回 false：
  * 按键状态只有客户端有，所以强制持续的判定带 isClientSide 守卫，
@@ -102,17 +105,16 @@ public abstract class ParCoolSlideMixin {
 
     /**
      * 是否请求结束滑铲
+     *
+     * 只有一种方式：松开后再按一次滑铲键。
+     * 跳跃键不再参与取消 —— 滑铲期间跳跃由 {@link ParCoolBehaviorEnforcerMixin}
+     * 放开（ParCool 原版是屏蔽掉跳跃键的）。
      */
     private boolean taczhacker$isCancelRequested() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return false;
 
-        // 1) 跳跃键（ParCool 原版就是靠跳跃退出滑铲）
-        if (HackConfig.parcoolCancelByJump && mc.options.keyJump.isDown()) {
-            return true;
-        }
-
-        // 2) 松开后再按一次滑铲键（ParCool 的爬行键，默认 C）
+        // 松开后再按一次滑铲键（ParCool 的爬行键，默认 C）
         //    getDoingTick() <= 1 时忽略：起滑那一两 tick 按键必然还按着，不能自己把自己取消掉
         int doingTick = ((com.alrex.parcool.common.action.Action) (Object) this).getDoingTick();
         return doingTick > 1 && ParCoolLongSlide.isSlideKeyJustPressed();

@@ -309,16 +309,17 @@ public class ConfigScreen {
                 HackConfig.parcoolLongSlideEnabled
         ).setTooltip(Component.literal("滑铲开始后不会自动结束（一直保持滑铲状态，速度比走路快）。\n"
                 + "起滑：ParCool 原生操作（跑动中按爬行键，默认 C）。\n"
-                + "退出：按跳跃键 / 松开后再按一次滑铲键 / 按「取消长滑铲」键（默认 Z）。\n"
+                + "退出：松开后再按一次滑铲键。\n"
                 + "需要客户端安装 ParCool；联机时服务端也要装 ParCool 和本 mod。"))
                 .setSaveConsumer(v -> HackConfig.parcoolLongSlideEnabled = v)
                 .build());
         parcoolCat.addEntry(e.startBooleanToggle(
-                Component.literal("按跳跃键取消滑铲"),
-                HackConfig.parcoolCancelByJump
-        ).setTooltip(Component.literal("开启后滑铲期间按跳跃键（空格）会结束滑铲。\n"
-                + "这是 ParCool 原版退出滑铲的方式；关闭后滑铲期间跳跃键仍然被 ParCool 屏蔽。"))
-                .setSaveConsumer(v -> HackConfig.parcoolCancelByJump = v)
+                Component.literal("滑铲时可以跳跃"),
+                HackConfig.parcoolJumpWhileSliding
+        ).setTooltip(Component.literal("ParCool 原版滑铲期间跳跃键是被屏蔽的，开这个就能在滑铲中起跳。\n"
+                + "水平速度仍然由滑铲维持，落地接着滑。\n"
+                + "关掉就恢复原版：滑铲期间按跳跃没反应。"))
+                .setSaveConsumer(v -> HackConfig.parcoolJumpWhileSliding = v)
                 .build());
         parcoolCat.addEntry(e.startBooleanToggle(
                 Component.literal("滑铲方向跟随视角"),
