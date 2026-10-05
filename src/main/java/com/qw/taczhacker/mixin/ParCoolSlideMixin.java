@@ -1,5 +1,6 @@
 package com.qw.taczhacker.mixin;
 
+import com.alrex.parcool.api.action.SynchronizedProperty;
 import com.alrex.parcool.common.Parkourability;
 import com.alrex.parcool.common.action.ParCoolActions;
 import com.alrex.parcool.common.action.impl.Slide;
@@ -7,7 +8,9 @@ import com.qw.taczhacker.feature.parcool.ParCoolLongSlide;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -29,6 +32,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  *        把进度钳在 20（倍率固定 0.7）；顺带在 supplier 里实时读视角方向实现「转向」。
  *        用 setMarkerEnforcingDeltaMovement 直接覆盖字段，不会叠加第二份强制。
  *
+ * 「转向」不只是改速度方向 —— 还要把方向**写回** Slide 的同步属性
+ * propertyMovingDirection：
+ *   滑铲动画的资源包 `assets/parcool/mma/groups/slide_group.json` 里带了
+ *   `parcool:builtin/slide_lock_body` 组件，它的实现是
+ *   `ParCoolCodedAnimationComponents#lockBody(player, Slide#getSlidingDirection(), partial)`，
+ *   也就是**用这个属性决定身体朝向**（旋转 BODY 部件到该方向的 yaw）。
+ *   所以只改速度不改属性的话：人会朝视角方向滑，但 F5 里模型一直朝着起滑那一瞬间的方向
+ *   —— 表现就是「朝向不对、移动方向正常」。
+ *   改写用 SynchronizedProperty#set + setDirty(false)：set 会把属性标脏，
+ *   而 ParCool 每 tick 用脏标记决定要不要发 ActionStateSetPacket，不清掉就变成每 tick 一个同步包
+ *   （违反作者的零额外发包纪律）。代价是服务器与其它玩家手里的方向仍是起滑方向。
+ *
  * 结束滑铲只有一种方式：松开后再按一次滑铲键（ParCool 的爬行键，默认 C）。
  * 跳跃键不参与 —— ParCool 4.0.1.0 原版滑铲期间本来就不屏蔽跳跃。
  *
@@ -43,6 +58,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(value = Slide.class, remap = false)
 public abstract class ParCoolSlideMixin {
+
+    /** ParCool 存滑动方向（含速度大小）的同步属性，滑铲动画的 lock_body 读的就是它 */
+    @Shadow
+    @Final
+    private SynchronizedProperty<Vec3> propertyMovingDirection;
 
     @Inject(
             method = "canContinue",
@@ -88,12 +108,7 @@ public abstract class ParCoolSlideMixin {
             if (direction == null) return current.getDeltaMovement();
 
             if (ParCoolLongSlide.isSteerableSlide()) {
-                Vec3 look = current.getLookAngle();
-                Vec3 flat = new Vec3(look.x, 0.0, look.z);
-                if (flat.lengthSqr() > 1.0E-4) {
-                    // property 里存的是速度向量（含大小），转向时只换方向、保留速度大小
-                    direction = flat.normalize().scale(direction.length());
-                }
+                direction = taczhacker$steerDirection(current, direction);
             }
 
             double progress = Math.min(slide.getDoingTick(), 20) / 20.0;
@@ -101,5 +116,32 @@ public abstract class ParCoolSlideMixin {
             // y 分量保留玩家当前垂直速度，所以滑铲中起跳不会被压掉
             return new Vec3(direction.x * scale, current.getDeltaMovement().y, direction.z * scale);
         });
+    }
+
+    /**
+     * 「方向跟随视角」：把滑铲方向换成当前视角的水平方向（模长沿用原方向），
+     * 并把这个方向写回 Slide 的同步属性，让滑铲动画的 lock_body 跟着转（F5 里身体朝向才对）。
+     *
+     * set() 之后必须立刻 setDirty(false)：ParCool 每 tick 检查脏标记决定要不要发
+     * ActionStateSetPacket，不清掉就会每 tick 一个同步包。
+     * 玩家没转视角时 set() 因为值没变不会置脏，所以清标记不会吞掉别人的脏数据
+     * （滑铲开始的那一包在起滑那一 tick 就发完了，那时本 supplier 还没生效）。
+     *
+     * @return 实际使用的滑铲方向
+     */
+    private Vec3 taczhacker$steerDirection(Player player, Vec3 direction) {
+        Vec3 look = player.getLookAngle();
+        Vec3 flat = new Vec3(look.x, 0.0, look.z);
+        if (flat.lengthSqr() <= 1.0E-4) {
+            return direction;
+        }
+
+        Vec3 live = flat.normalize().scale(direction.length());
+        SynchronizedProperty<Vec3> property = this.propertyMovingDirection;
+        if (property != null) {
+            property.set(live);
+            property.setDirty(false);
+        }
+        return live;
     }
 }
