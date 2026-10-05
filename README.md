@@ -15,7 +15,7 @@
 | 透视 X-ray | X | 跳过所有方块渲染，可透视见实体 |
 | 飞行挂 | G | 自由飞行，支持开关/按住两种模式；默认推进速度可设 0（不自动往前飘） |
 | 全亮（Fullbright） | B | 强制最大亮度，关闭时自动恢复 |
-| ParCool 长滑铲 | 起滑 C；退出 再按一次 C | 滑铲不自动结束、滑铲中可以跳跃、方向跟随视角、不消耗体力（需 ParCool） |
+| ParCool 长滑铲 | 起滑 C；退出 再按一次 C | 滑铲不自动结束、方向跟随视角、不消耗体力；滑铲中可以正常跳跃（需 ParCool 4.0+） |
 | ESP | J | 准心连线 / 方框 / 骨骼，可在配置里分别开关 |
 | 实体信息牌 | K | 目标头顶显示名字 / 血量 / 距离 / 血条 |
 | 无后坐力（Tacz） | 配置项开关 | 去掉开火时画面的上跳，纯客户端 |
@@ -33,7 +33,7 @@
 - [Tacz 1.20.1-1.1.8-hotfix2](https://www.curseforge.com/minecraft/mc-mods/timeless-and-classics-zero)
 - [Embeddium 0.3.31+mc1.20.1](https://www.curseforge.com/minecraft/mc-mods/embeddium)
 - [Cloth Config API 11.1.136-forge](https://www.curseforge.com/minecraft/mc-mods/cloth-config)
-- [ParCool 1.20.1-3.4.3.3](https://modrinth.com/mod/parcool)（功能7 长滑铲用；既是编译期依赖，也会被 `installToMods` 一并装进 mods）
+- [ParCool 1.20.1-4.0.1.0](https://modrinth.com/mod/parcool)（功能7 长滑铲用；既是编译期依赖，也会被 `installToMods` 一并装进 mods）
 
 你可以在build后把项目根目录/libs/下的这几个mod连同本mod(build/libs/)一起复制到*1.20.1 Forge*游戏的mods目录中
 
@@ -65,7 +65,7 @@ gradle installToMods
 
 - 本 mod 是**纯客户端为主**：服务器不装也能进（`displayTest` + 通道的 `acceptMissingOr` 两处都放宽了）
 - 部分功能（追踪弹、穿墙子弹）**仅单机/双端都装mod有效**
-- 功能7 长滑铲要装的 **ParCool 本体联机时必须两端都装**（ParCool 自己没写 `displayTest`，Forge 会拒绝连接）
+- 功能7 长滑铲要装的 **ParCool 本体联机时必须两端都装**（ParCool 自己没写 `displayTest`，Forge 会拒绝连接），且要 **4.0+**（4.0 重写了动作 API，3.x 的滑铲 mixin 不兼容）
 - 无限体力、长滑铲判定都在客户端跑，**本 mod 不用装在服务端**
 - 功能8 ESP 是纯客户端渲染（连线 / 方框 / 骨骼都不发包），服务端装不装都一样
 - 无后坐力只去掉**画面**的上跳：Tacz 的后坐力是渲染层的摄像机偏移，本来就不影响弹道

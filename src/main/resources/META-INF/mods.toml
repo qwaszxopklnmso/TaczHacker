@@ -47,6 +47,6 @@ side = "CLIENT"
 [[dependencies.${mod_id}]]
 modId = "parcool"
 mandatory = false
-versionRange = "[3.4.3.0,)"
+versionRange = "[4.0.0.0,)"
 ordering = "AFTER"
 side = "BOTH"

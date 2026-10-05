@@ -310,16 +310,9 @@ public class ConfigScreen {
         ).setTooltip(Component.literal("滑铲开始后不会自动结束（一直保持滑铲状态，速度比走路快）。\n"
                 + "起滑：ParCool 原生操作（跑动中按爬行键，默认 C）。\n"
                 + "退出：松开后再按一次滑铲键。\n"
-                + "需要客户端安装 ParCool；联机时服务端也要装 ParCool 和本 mod。"))
+                + "滑铲期间可以正常跳跃和转向（ParCool 4.0 原版滑铲本来就不屏蔽跳跃）。\n"
+                + "需要客户端安装 ParCool 4.0+；联机时服务端也要装 ParCool 和本 mod。"))
                 .setSaveConsumer(v -> HackConfig.parcoolLongSlideEnabled = v)
-                .build());
-        parcoolCat.addEntry(e.startBooleanToggle(
-                Component.literal("滑铲时可以跳跃"),
-                HackConfig.parcoolJumpWhileSliding
-        ).setTooltip(Component.literal("ParCool 原版滑铲期间跳跃键是被屏蔽的，开这个就能在滑铲中起跳。\n"
-                + "水平速度仍然由滑铲维持，落地接着滑。\n"
-                + "关掉就恢复原版：滑铲期间按跳跃没反应。"))
-                .setSaveConsumer(v -> HackConfig.parcoolJumpWhileSliding = v)
                 .build());
         parcoolCat.addEntry(e.startBooleanToggle(
                 Component.literal("滑铲方向跟随视角"),

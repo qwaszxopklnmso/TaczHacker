@@ -18,7 +18,7 @@ import net.minecraftforge.fml.common.Mod;
  * 每 tick 在 START 阶段刷新按键状态（必须早于玩家 tick 里的 ParCool 动作判定）：
  *   ParCool 的滑铲键（爬行键，默认 C）—— 通过 ParCoolKeyAccess 反射式读取，
  *   它会吞掉 ClassNotFound，所以没装 ParCool 也不会崩。
- *   退出滑铲只有两种方式：跳跃键，或者松开后再按一次滑铲键。
+ *   退出滑铲只有一种方式：松开后再按一次滑铲键。
  * 在 END 阶段收尾滑铲状态（供 HUD 显示）。
  */
 @Mod.EventBusSubscriber(modid = Taczhacker.MODID, value = Dist.CLIENT)

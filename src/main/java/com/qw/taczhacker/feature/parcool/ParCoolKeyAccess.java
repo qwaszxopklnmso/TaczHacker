@@ -13,14 +13,18 @@ import java.lang.reflect.Method;
  * 直接 import ParCool 的类会在没装 ParCool 时抛 NoClassDefFoundError。
  * 反射可以吞掉这个异常，返回「没按下」。
  *
- * 用途：读取 ParCool 记录的「滑铲键（爬行键，默认 C）」状态，
- * 实现「松开后再按一次按键 = 退出滑铲」。
+ * ParCool 4.0 的按键结构（3.4 的 client.input.KeyRecorder 已不存在）：
+ *   com.alrex.parcool.client.input.ParCoolKeyBinds.CRAWL         —— 爬行/滑铲键，默认 C
+ *   → Input（record）的 state() 返回 InputState
+ *   → InputState.isDown()
+ * 反射只碰 ParCool 自己的类名/方法名（这些名字不会被重混淆），不碰原版方法。
  */
 public final class ParCoolKeyAccess {
 
     private static boolean resolved = false;
-    private static Object crawlKeyState = null;
-    private static Method isPressedMethod = null;
+    private static Object crawlInput = null;
+    private static Method stateMethod = null;
+    private static Method isDownMethod = null;
 
     private ParCoolKeyAccess() {
     }
@@ -33,7 +37,11 @@ public final class ParCoolKeyAccess {
             return false;
         }
         try {
-            Object result = isPressedMethod.invoke(crawlKeyState);
+            Object state = stateMethod.invoke(crawlInput);
+            if (state == null) {
+                return false;
+            }
+            Object result = isDownMethod.invoke(state);
             return result instanceof Boolean && (Boolean) result;
         } catch (Throwable t) {
             return false;
@@ -42,25 +50,36 @@ public final class ParCoolKeyAccess {
 
     private static boolean resolve() {
         if (resolved) {
-            return crawlKeyState != null;
+            return crawlInput != null;
         }
         resolved = true;
         try {
-            Class<?> recorder = Class.forName("com.alrex.parcool.client.input.KeyRecorder");
-            Field field = recorder.getField("keyCrawlState");
-            field.setAccessible(true);
-            Object state = field.get(null);
-            if (state == null) {
+            Class<?> keyBinds = Class.forName("com.alrex.parcool.client.input.ParCoolKeyBinds");
+            Field field = keyBinds.getField("CRAWL");
+            Object input = field.get(null);
+            if (input == null) {
                 return false;
             }
-            isPressedMethod = state.getClass().getMethod("isPressed");
-            isPressedMethod.setAccessible(true);
-            crawlKeyState = state;
+            // Input#state()（record 访问器）
+            Method state = input.getClass().getMethod("state");
+            state.setAccessible(true);
+            Object stateObject = state.invoke(input);
+            if (stateObject == null) {
+                return false;
+            }
+            // InputState#isDown()
+            Method down = stateObject.getClass().getMethod("isDown");
+            down.setAccessible(true);
+
+            crawlInput = input;
+            stateMethod = state;
+            isDownMethod = down;
         } catch (Throwable t) {
-            crawlKeyState = null;
-            isPressedMethod = null;
+            crawlInput = null;
+            stateMethod = null;
+            isDownMethod = null;
         }
-        return crawlKeyState != null;
+        return crawlInput != null;
     }
 
     /**
@@ -68,7 +87,8 @@ public final class ParCoolKeyAccess {
      */
     public static void reset() {
         resolved = false;
-        crawlKeyState = null;
-        isPressedMethod = null;
+        crawlInput = null;
+        stateMethod = null;
+        isDownMethod = null;
     }
 }

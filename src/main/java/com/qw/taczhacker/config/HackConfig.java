@@ -233,21 +233,13 @@ public class HackConfig {
     // 功能7：ParCool 长滑铲
     // ============================================================
     private static final ForgeConfigSpec.BooleanValue PARCOOL_LONG_SLIDE_ENABLED = BUILDER
-            .comment("功能7：ParCool 长滑铲。开启后滑铲不会自动结束（一直是滑铲状态，比走路快）。\n"
+            .comment("功能7：ParCool 长滑铲。开启后滑铲不会自动结束（一直是滑铲状态，比走路快），\n"
+                    + "滑铲期间可以正常跳跃和转向。\n"
                     + "退出滑铲：松开后再按一次滑铲键（ParCool 的爬行键，默认 C）。\n"
-                    + "需要玩家同时安装 ParCool；若要联机使用，服务端也要装 ParCool 和本 mod。",
+                    + "需要 ParCool 4.0+；若要联机使用，服务端也要装 ParCool 和本 mod。",
                     "ParCool long slide. While enabled, a slide never ends on its own. "
-                    + "Stop it by re-pressing the crawl/slide key. Requires ParCool, on both sides for multiplayer.")
+                    + "Stop it by re-pressing the crawl/slide key. Requires ParCool 4.0+, on both sides for multiplayer.")
             .define("parcool.longSlide", true);
-
-    private static final ForgeConfigSpec.BooleanValue PARCOOL_JUMP_WHILE_SLIDING = BUILDER
-            .comment("功能7：滑铲期间可以跳跃。\n"
-                    + "ParCool 原版在滑铲时会用 BehaviorEnforcer 把跳跃键屏蔽掉，这里取消那个屏蔽，\n"
-                    + "所以滑铲中按空格能正常起跳（水平速度仍然由滑铲维持，落地接着滑）。\n"
-                    + "关掉则恢复 ParCool 原版行为：滑铲期间跳跃键按不动。",
-                    "Allow jumping while sliding. ParCool blocks the jump key during a slide; "
-                    + "this removes that block. Turn off to restore vanilla ParCool behavior.")
-            .define("parcool.jumpWhileSliding", true);
 
     private static final ForgeConfigSpec.BooleanValue PARCOOL_STEERABLE_SLIDE = BUILDER
             .comment("功能7：滑铲方向跟随视角。ParCool 原版的滑铲方向在起滑瞬间就固定了，\n"
@@ -519,7 +511,6 @@ public class HackConfig {
         // 功能7
         PARCOOL_LONG_SLIDE_ENABLED.set(parcoolLongSlideEnabled);
         PARCOOL_INFINITE_STAMINA.set(parcoolInfiniteStamina);
-        PARCOOL_JUMP_WHILE_SLIDING.set(parcoolJumpWhileSliding);
         PARCOOL_STEERABLE_SLIDE.set(parcoolSteerableSlide);
 
         // 功能8
@@ -644,7 +635,6 @@ public class HackConfig {
     // 功能7：ParCool 长滑铲
     public static boolean parcoolLongSlideEnabled;
     public static boolean parcoolInfiniteStamina;
-    public static boolean parcoolJumpWhileSliding;
     public static boolean parcoolSteerableSlide;
 
     // 功能8：玩家 ESP
@@ -753,7 +743,6 @@ public class HackConfig {
             // 功能7
             parcoolLongSlideEnabled = PARCOOL_LONG_SLIDE_ENABLED.get();
             parcoolInfiniteStamina = PARCOOL_INFINITE_STAMINA.get();
-            parcoolJumpWhileSliding = PARCOOL_JUMP_WHILE_SLIDING.get();
             parcoolSteerableSlide = PARCOOL_STEERABLE_SLIDE.get();
 
             // 功能8
