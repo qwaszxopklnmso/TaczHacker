@@ -75,15 +75,23 @@ public class ServerDetectorClientHandler {
      * 把「客户端当前开着哪些子弹端功能」重新同步给服务端
      *
      * 服务端拿它和自己的配置做与门（详见 {@link ClientFeatureFlags}）。
-     * 调用时机：功能1 的 N 键切换、配置界面保存（这两处会让三项里的至少一项变化）。
+     * 调用时机：功能1 的 N 键切换、配置界面保存，以及任何来源的配置变化
+     * （{@link ClientCapabilityResyncHandler} 挂的 ModConfigEvent，覆盖手改 toml 的情况）。
      * 集成服务器不用发：客户端与服务端同进程、共用同一份配置，服务端直接读配置。
      */
     public static void sendFeatureFlags() {
         Minecraft mc = Minecraft.getInstance();
+        // 配置加载事件（ModConfigEvent.Loading）在启动阶段就会触发，
+        // 那时客户端实例可能还没建好 —— 这种时候没有连接，直接跳过
+        if (mc == null) return;
         if (mc.getConnection() == null || mc.isLocalServer()) return;
         try {
             Connection connection = mc.getConnection().getConnection();
-            if (connection == null || !Taczhacker.CHANNEL.isRemotePresent(connection)) return;
+            if (connection == null || !Taczhacker.CHANNEL.isRemotePresent(connection)) {
+                // 服务端没装本 mod：没有与门可言，客户端自己那份配置就是全部（不发包是对的）
+                Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 服务端通道不存在，跳过能力位同步");
+                return;
+            }
             Taczhacker.CHANNEL.sendToServer(new C2SHandshakePacket(
                     AimHandler.isActive(),
                     HackConfig.globalEnabled && HackConfig.aimSinglePlayerHomingBullet,

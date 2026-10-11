@@ -52,8 +52,10 @@ public class Taczhacker {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
         // 注册配置（COMMON 类型，服务端和客户端都加载，确保真·自瞄在专用服务器上也能读取配置）
+        // 注意：HackConfig#onLoad 已经由它自己的 @Mod.EventBusSubscriber(bus = MOD) 注册过了，
+        // 这里**不要**再 addListener 一次 —— 重复注册会让每次配置变化都刷新两遍缓存，
+        // 日志里也会出现两条「TaczHacker 配置已刷新」，排查时容易误判成两个配置文件都变了。
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, HackConfig.SPEC, "taczhacker-common.toml");
-        modEventBus.addListener(HackConfig::onLoad);
 
         // 注册通用事件（网络包注册）
         modEventBus.addListener(this::onCommonSetup);
