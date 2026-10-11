@@ -37,11 +37,20 @@ import net.minecraftforge.fml.common.Mod;
  * 所以要在还在世界里的时候每 tick 缓存一份（{@link #lastServer}）。
  * 兜底用原版的 {@code options.lastMpIp}（options.txt 里的 lastServer，就是上次进的服务器地址）。
  *
- * 局域网（LAN）世界不参与自动重连：那种服务器的地址是临时端口，重连没有意义。
+ * 谁参与、谁不参与（2026-10-11 修过一次，别改回去）：
+ * - **自己就是服务端**（单机存档、自己开的局域网房）→ 不参与，判据是 {@code mc.isLocalServer()}。
+ *   注意**不能**用 {@code hasSingleplayerServer()}：开成局域网后 `singleplayerServer.isPublished()`
+ *   为 true，那个方法会返回 false，房主自己的客户端就被当成普通客户端了。
+ * - **连别人的服务器**（含从「局域网世界」列表进去的）→ 参与。局域网条目的地址是
+ *   `host:port`（{@code LanServerDetection} 拼的），重连完全有效；
+ *   以前按 {@code ServerData#isLan()} 把它排除掉，导致局域网客户端被踢后界面和原版一模一样。
  *
  * 取消自动重连有两种自然方式（都不用额外代码）：
  * - 点界面上任意会换屏的按钮（原版的「返回服务器列表」）→ 屏幕变了，倒计时自动作废
  * - 点我们加的「取消自动重连」按钮 → 直接作废
+ *
+ * ⚠️ 所有提前返回的分支都会打一条 INFO 日志。这个功能以前是「静默地什么都不显示」，
+ * 排查时无从下手（作者报「和原版相同」时，只能靠日志判断卡在哪一步）。
  */
 @Mod.EventBusSubscriber(modid = Taczhacker.MODID, value = Dist.CLIENT)
 public final class AutoReconnectHandler {
@@ -70,19 +79,47 @@ public final class AutoReconnectHandler {
 
     @SubscribeEvent
     public static void onScreenInit(ScreenEvent.Init.Post event) {
-        if (!isFeatureEnabled()) return;
         if (!(event.getScreen() instanceof DisconnectedScreen screen)) return;
 
         Minecraft mc = Minecraft.getInstance();
-        // 单机存档 / 自己开的局域网房：没有「上一次的联机服务器」可回，不参与
-        if (mc.hasSingleplayerServer()) return;
+
+        // 下面每一处提前返回都留一条日志：这个功能以前是「静默不作声地什么都不显示」，
+        // 结果作者报「界面和原版一模一样，一个多余的字都没有」，完全没法判断卡在哪一步
+        // （见 2026-10-11 的教训：真正的原因是局域网世界的地址被过滤掉了）。
+        if (!HackConfig.globalEnabled || !HackConfig.autoReconnectEnabled) {
+            Taczhacker.LOGGER.info("自动重连：功能未开启（global.enabled={}, autoreconnect.enabled={}），界面保持原版",
+                    HackConfig.globalEnabled, HackConfig.autoReconnectEnabled);
+            return;
+        }
+
+        // 自己就是服务端（单机存档 / 自己开的局域网房）：没有「上一次的联机服务器」可回，不参与。
+        // 用 isLocalServer() 而不是 hasSingleplayerServer()：后者在「开成局域网」时会返回 false
+        // （singleplayerServer.isPublished() 为 true），于是房主自己的客户端也会被当成普通客户端，
+        // 白白给「连自己」倒计时。isLocalServer() 才是「我就是那个服务端」的准确判据
+        // （ServerDetectorClientHandler#sendFeatureFlags 用的也是它）。
+        if (mc.isLocalServer()) {
+            Taczhacker.LOGGER.info("自动重连：当前自己就是服务端（单机存档 / 自己开的局域网房），不参与");
+            return;
+        }
 
         ServerData target = resolveServer(mc);
-        if (target == null) return; // 单机 / 没有上次服务器 → 不显示任何东西
-        if (isAttemptLimitReached()) return;
+        if (target == null) {
+            Taczhacker.LOGGER.info("自动重连：拿不到上一次的服务器地址，界面保持原版"
+                    + "（还在世界里时没有缓存到连接信息，且 options.txt 的 lastServer 也是空的）");
+            return;
+        }
+        if (isAttemptLimitReached()) {
+            Taczhacker.LOGGER.info("自动重连：已达最大尝试次数 {}，不再倒计时", HackConfig.autoReconnectMaxAttempts);
+            return;
+        }
 
+        // 窗口大小变化会让原版重新 init()，Forge 也会再发一次 Init.Post。
+        // 这种情况下要补按钮，但**不能**把倒计时重置回满（否则改一次窗口大小就白等一轮）
+        boolean alreadyArmed = (armedScreen == screen);
         armedScreen = screen;
-        ticksLeft = Math.max(1, HackConfig.autoReconnectDelaySeconds) * 20;
+        if (!alreadyArmed) {
+            ticksLeft = Math.max(1, HackConfig.autoReconnectDelaySeconds) * 20;
+        }
 
         int y = screen.height - 48;
         int centerX = screen.width / 2;
@@ -97,8 +134,10 @@ public final class AutoReconnectHandler {
                 .bounds(centerX + 4, y, 150, 20).build());
         updateButtonLabel();
 
-        Taczhacker.LOGGER.info("自动重连：{} 秒后重连到 {}（第 {} 次）",
-                HackConfig.autoReconnectDelaySeconds, target.ip, attempts + 1);
+        if (!alreadyArmed) {
+            Taczhacker.LOGGER.info("自动重连：{} 秒后重连到 {}（第 {} 次）",
+                    HackConfig.autoReconnectDelaySeconds, target.ip, attempts + 1);
+        }
     }
 
     @SubscribeEvent
@@ -139,13 +178,28 @@ public final class AutoReconnectHandler {
 
         Minecraft mc = Minecraft.getInstance();
 
-        // 1) 在游戏里：缓存服务器信息 + 清零重试计数
-        if (mc.level != null) {
-            attempts = 0;
+        // 1) 缓存服务器信息
+        //
+        // ⚠️ 这一步**不能**放在 mc.level != null 里面：加载地形的那几秒
+        // （ReceivingLevelScreen，mc.level 还是 null）连接其实已经建立、getCurrentServer() 已经有值了，
+        // 万一在这个阶段被踢（服务器判超时之类），缓存不到就没有"上一次的服务器"可回。
+        //
+        // ⚠️ 2026-10-11 修：以前这里排除了 isLan() 的世界，于是**从「局域网世界」列表进去的客户端
+        // 永远缓存不到服务器地址**（局域网条目的 ServerData#isLan() 是 true）。
+        // 结果就是被踢之后既没有按钮也没有倒计时，界面和原版一模一样 —— 作者报的就是这个。
+        // 局域网条目一样能重连：它的 ip 是 LanServerDetection 拼的「host:port」
+        // （`p_120098_.getHostAddress() + ":" + port`），ServerAddress.parseString 完全认。
+        // 「自己不参与」这件事交给 isLocalServer()（自己就是服务端）来判断，不要按 isLan 一刀切。
+        if (!mc.isLocalServer()) {
             ServerData current = mc.getCurrentServer();
-            if (current != null && !current.isLan()) {
+            if (current != null && current.ip != null && !current.ip.isEmpty()) {
                 lastServer = current;
             }
+        }
+
+        // 已经在世界里：清零重试计数（重连成功后重新开始计数）
+        if (mc.level != null) {
+            attempts = 0;
             return;
         }
 
