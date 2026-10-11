@@ -70,7 +70,7 @@ gradle installToMods
   决定身体朝哪边（`builtin/slide_lock_body`），本 mod 转向时会把新方向写回该属性 —— 所以 F5 里
   身体朝向和移动方向是一致的。
   - 写回默认是**静默**的（`set` 后立刻 `setDirty(false)`，不产生同步包），只影响自己
-  - 要让**联机时别人也看到转向**，本 mod 会按 `parcool.slideSyncInterval`（默认 10 tick）
+  - 要让**联机时别人也看到转向**，本 mod 会按 `parcool.slideSyncInterval`（默认 6 tick）
     把方向同步给服务器（服务器再转给所有客户端）；直线滑行不转向时一个包都不发，
     设成 `0` 就是完全不同步（零额外发包，但别人看你一直朝着起滑方向）
 - **ParCool 4.0 的技能树默认开着，会把滑铲锁死**：`enable_skill_tree` 默认 `true`（存在世界存档的

@@ -276,13 +276,13 @@ public class HackConfig {
                     + "所以要让别人也看到正确的朝向，就得定期把这个方向同步给服务器（服务器再转给所有客户端）。\n"
                     + "本项 = 转向时每隔多少 tick 允许发一次方向包；玩家没转视角时不会发包。\n"
                     + "0 = 从不同步（本 mod 零额外发包，但别人看到的一直是起滑方向）。\n"
-                    + "数值越小别人看到的转向越顺、包越多（默认 10 tick／次）。",
+                    + "数值越小别人看到的转向越顺、包越多（默认 6 tick／次）。",
                     "Slide-direction sync interval for multiplayer, in ticks. The slide direction is client-authoritative; "
                     + "to make other players see your body facing the real slide direction, the client has to send the "
                     + "direction to the server periodically (the server relays it to everyone). This is how often a packet "
                     + "may be sent while you are steering; nothing is sent while you do not turn the view. "
                     + "0 = never sync (zero extra packets, others keep seeing the initial direction).")
-            .defineInRange("parcool.slideSyncInterval", 10, 0, 100);
+            .defineInRange("parcool.slideSyncInterval", 6, 0, 100);
 
     // ============================================================
     // 功能8：玩家 ESP（准心连线）
