@@ -44,7 +44,36 @@ public final class ParCoolLongSlide {
     /** 滑铲键是否本 tick 刚刚按下（松开后再按 = 退出滑铲） */
     private static volatile boolean slideKeyJustPressed = false;
 
+    /** 转向方向的同步冷却计数（见 allowDirectionSync） */
+    private static int directionSyncCooldown = 0;
+
     private ParCoolLongSlide() {
+    }
+
+    /**
+     * 转向方向的同步节流（供 Slide 注入使用）
+     *
+     * 滑铲方向是「客户端权威」的，但其它玩家看到的身体朝向来自 ParCool 同步到他们那边的
+     * Slide.propertyMovingDirection（他们的滑铲动画用 `builtin/slide_lock_body` 拿它锁身体朝向）。
+     * 所以要让别人也看到正确朝向，就必须偶尔把这个方向发给服务器（服务器再转给所有客户端）。
+     *
+     * 本方法每隔 `parcool.slideSyncInterval` tick 放行一次：放行的那一 tick 我们**不**清脏标记，
+     * ParCool 自己的 ActionProcessor 就会在那一 tick 带一个方向包出去；其它 tick 全静默。
+     * 玩家没转视角时 property 的值没变、根本不会置脏，所以那种情况一个包都不发。
+     *
+     * @return true = 本 tick 允许把方向同步出去
+     */
+    public static boolean allowDirectionSync() {
+        int interval = HackConfig.parcoolSlideSyncInterval;
+        if (interval <= 0) {
+            return false;
+        }
+        if (directionSyncCooldown > 0) {
+            --directionSyncCooldown;
+            return false;
+        }
+        directionSyncCooldown = interval;
+        return true;
     }
 
     /**
@@ -135,5 +164,6 @@ public final class ParCoolLongSlide {
         slideActiveLastTick = false;
         slideKeyPressed = false;
         slideKeyJustPressed = false;
+        directionSyncCooldown = 0;
     }
 }

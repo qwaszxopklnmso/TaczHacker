@@ -269,6 +269,21 @@ public class HackConfig {
                     + "install it on the server too for server-triggered actions such as Breakfall.")
             .define("parcool.unlockAllActions", true);
 
+    private static final ForgeConfigSpec.IntValue PARCOOL_SLIDE_SYNC_INTERVAL = BUILDER
+            .comment("功能7附属：滑铲转向的同步间隔（tick），只影响联机时「别人看到的滑铲朝向」。\n"
+                    + "滑铲方向是客户端权威的：只改速度的话，其它玩家看到的身体朝向仍来自 ParCool 的\n"
+                    + "同步属性 Slide.propertyMovingDirection（起滑瞬间的方向，他们的滑铲动画拿它锁身体朝向）。\n"
+                    + "所以要让别人也看到正确的朝向，就得定期把这个方向同步给服务器（服务器再转给所有客户端）。\n"
+                    + "本项 = 转向时每隔多少 tick 允许发一次方向包；玩家没转视角时不会发包。\n"
+                    + "0 = 从不同步（本 mod 零额外发包，但别人看到的一直是起滑方向）。\n"
+                    + "数值越小别人看到的转向越顺、包越多（默认 10 tick／次）。",
+                    "Slide-direction sync interval for multiplayer, in ticks. The slide direction is client-authoritative; "
+                    + "to make other players see your body facing the real slide direction, the client has to send the "
+                    + "direction to the server periodically (the server relays it to everyone). This is how often a packet "
+                    + "may be sent while you are steering; nothing is sent while you do not turn the view. "
+                    + "0 = never sync (zero extra packets, others keep seeing the initial direction).")
+            .defineInRange("parcool.slideSyncInterval", 10, 0, 100);
+
     // ============================================================
     // 功能8：玩家 ESP（准心连线）
     // ============================================================
@@ -528,6 +543,7 @@ public class HackConfig {
         PARCOOL_INFINITE_STAMINA.set(parcoolInfiniteStamina);
         PARCOOL_STEERABLE_SLIDE.set(parcoolSteerableSlide);
         PARCOOL_UNLOCK_ALL_ACTIONS.set(parcoolUnlockAllActions);
+        PARCOOL_SLIDE_SYNC_INTERVAL.set(parcoolSlideSyncInterval);
 
         // 功能8
         ESP_ENABLED.set(espEnabled);
@@ -653,6 +669,7 @@ public class HackConfig {
     public static boolean parcoolInfiniteStamina;
     public static boolean parcoolSteerableSlide;
     public static boolean parcoolUnlockAllActions;
+    public static int parcoolSlideSyncInterval;
 
     // 功能8：玩家 ESP
     public static boolean espEnabled;
@@ -762,6 +779,7 @@ public class HackConfig {
             parcoolInfiniteStamina = PARCOOL_INFINITE_STAMINA.get();
             parcoolSteerableSlide = PARCOOL_STEERABLE_SLIDE.get();
             parcoolUnlockAllActions = PARCOOL_UNLOCK_ALL_ACTIONS.get();
+            parcoolSlideSyncInterval = PARCOOL_SLIDE_SYNC_INTERVAL.get();
 
             // 功能8
             espEnabled = ESP_ENABLED.get();

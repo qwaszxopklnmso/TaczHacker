@@ -42,7 +42,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  *   —— 表现就是「朝向不对、移动方向正常」。
  *   改写用 SynchronizedProperty#set + setDirty(false)：set 会把属性标脏，
  *   而 ParCool 每 tick 用脏标记决定要不要发 ActionStateSetPacket，不清掉就变成每 tick 一个同步包
- *   （违反作者的零额外发包纪律）。代价是服务器与其它玩家手里的方向仍是起滑方向。
+ *   （违反作者的零额外发包纪律）。
+ *   但一直静默写的话，服务器与其它玩家手里的方向仍是起滑方向 —— 联机时别人看你还是不转向。
+ *   所以再按 `parcool.slideSyncInterval`（默认 10 tick）节流：每 N tick 放行一次脏标记，
+ *   让 ParCool 自己带一个方向包出去，服务器转发给所有客户端，别人也能看到转向；
+ *   没转视角时不置脏、一个包都不发。
  *
  * 结束滑铲只有一种方式：松开后再按一次滑铲键（ParCool 的爬行键，默认 C）。
  * 跳跃键不参与 —— ParCool 4.0.1.0 原版滑铲期间本来就不屏蔽跳跃。
@@ -122,10 +126,12 @@ public abstract class ParCoolSlideMixin {
      * 「方向跟随视角」：把滑铲方向换成当前视角的水平方向（模长沿用原方向），
      * 并把这个方向写回 Slide 的同步属性，让滑铲动画的 lock_body 跟着转（F5 里身体朝向才对）。
      *
-     * set() 之后必须立刻 setDirty(false)：ParCool 每 tick 检查脏标记决定要不要发
-     * ActionStateSetPacket，不清掉就会每 tick 一个同步包。
-     * 玩家没转视角时 set() 因为值没变不会置脏，所以清标记不会吞掉别人的脏数据
-     * （滑铲开始的那一包在起滑那一 tick 就发完了，那时本 supplier 还没生效）。
+     * set() 会置脏，而 ParCool 每 tick 用脏标记决定要不要发 ActionStateSetPacket，所以默认写完立刻
+     * setDirty(false) —— 这样本 mod 零额外发包，但服务器与其它玩家手里的方向仍是起滑方向
+     * （别人看你还是不转向）。要让他们也看到正确朝向，就按 `parcool.slideSyncInterval` 节流：
+     * 每隔 N tick 放行一次、那一 tick **不清**脏标记，让 ParCool 自己带一个方向包出去
+     * （服务器收到后会转发给所有客户端，见 ActionStateSetPacket#handleInPhysicalServer）。
+     * 玩家没转视角时 set() 因为值没变不会置脏，所以直线滑行时一个包都不会发。
      *
      * @return 实际使用的滑铲方向
      */
@@ -140,7 +146,9 @@ public abstract class ParCoolSlideMixin {
         SynchronizedProperty<Vec3> property = this.propertyMovingDirection;
         if (property != null) {
             property.set(live);
-            property.setDirty(false);
+            if (!ParCoolLongSlide.allowDirectionSync()) {
+                property.setDirty(false);
+            }
         }
         return live;
     }

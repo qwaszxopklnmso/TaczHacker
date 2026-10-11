@@ -337,6 +337,18 @@ public class ConfigScreen {
         ).setTooltip(Component.literal("跑酷动作不再扣 ParCool 体力（体力条不动、也不会力竭）。"))
                 .setSaveConsumer(v -> HackConfig.parcoolInfiniteStamina = v)
                 .build());
+        parcoolCat.addEntry(e.startIntField(
+                Component.literal("转向同步间隔（tick）"),
+                HackConfig.parcoolSlideSyncInterval
+        ).setTooltip(Component.literal("只影响联机时「别人看到的滑铲朝向」。\n"
+                + "滑铲方向是客户端权威的：只改速度的话，其它玩家看到的身体朝向仍来自 ParCool 的\n"
+                + "同步属性（起滑瞬间的方向），他们的滑铲动画拿它锁身体朝向，所以看着不转向。\n"
+                + "本项 = 转向时每隔多少 tick 允许发一次方向包（服务器再转给所有客户端）；\n"
+                + "没转视角时不发包。0 = 从不同步（零额外发包，但别人看到的一直是起滑方向）。\n"
+                + "越小别人看到的转向越顺、包越多。"))
+                .setMin(0).setMax(100)
+                .setSaveConsumer(v -> HackConfig.parcoolSlideSyncInterval = v)
+                .build());
 
         // ============================================================
         // 功能8：玩家 ESP（准心连线）

@@ -67,9 +67,12 @@ gradle installToMods
 - 部分功能（追踪弹、穿墙子弹）**仅单机/双端都装mod有效**
 - 功能7 长滑铲要装的 **ParCool 本体联机时必须两端都装**（ParCool 自己没写 `displayTest`，Forge 会拒绝连接），且要 **4.0+**（4.0 重写了动作 API，3.x 的滑铲 mixin 不兼容）
 - **滑铲方向跟随视角会同时改「身体朝向」**：ParCool 的滑铲动画用同步属性 `propertyMovingDirection`
-  决定身体朝哪边（`builtin/slide_lock_body`），本 mod 转向时会把新方向**静默**写回该属性
-  （`set` 后立刻 `setDirty(false)`，不产生同步包），所以 F5 里身体和移动方向是一致的。
-  代价：服务器和其它玩家手里的方向仍是起滑方向（本 mod 一个包都不多发）
+  决定身体朝哪边（`builtin/slide_lock_body`），本 mod 转向时会把新方向写回该属性 —— 所以 F5 里
+  身体朝向和移动方向是一致的。
+  - 写回默认是**静默**的（`set` 后立刻 `setDirty(false)`，不产生同步包），只影响自己
+  - 要让**联机时别人也看到转向**，本 mod 会按 `parcool.slideSyncInterval`（默认 10 tick）
+    把方向同步给服务器（服务器再转给所有客户端）；直线滑行不转向时一个包都不发，
+    设成 `0` 就是完全不同步（零额外发包，但别人看你一直朝着起滑方向）
 - **ParCool 4.0 的技能树默认开着，会把滑铲锁死**：`enable_skill_tree` 默认 `true`（存在世界存档的
   `saves/<存档名>/serverconfig/parcool-server.toml`），除抓钩外每个动作都要花经验等级在技能树里学习
   （快跑/爬行各 1 级、滑铲 10 级…）。没学过时 `Parkourability#permit` 恒为 false，**所有跑酷动作都起不了手**
