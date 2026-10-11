@@ -111,19 +111,27 @@ public class FullbrightHandler {
     }
 
     /**
-     * 写 gamma：先走正常的 {@code set()}，被原版 0~1 的 ValueSet 拒掉时直接写字段兜底
+     * 写 gamma
      *
-     * （{@code OptionInstance#set} 校验不过只会打一条 error 日志然后**保留旧值**，
-     * 不写兜底的话「全亮没反应」就会再次变成一个静默失败。）
+     * 顺序有讲究：{@code OptionInstance#set} 在**校验不过**时会把值回落成 {@code initialValue}
+     * （gamma 的 initialValue 是 0.5，不是旧值！见 GammaAccess 类注释引的反编译片段），
+     * 所以
+     * - 放宽成功（{@link GammaAccess#isWideRangeInstalled()}）→ 正常走 {@code set()}，
+     *   这样 option 自己的记账/回调都照旧跑
+     * - 放宽失败 → 干脆不调 {@code set()}（否则亮度会被打回 0.5 + 刷一条 error 日志），
+     *   直接写 {@code value} 字段
+     * 两条路最后都会再校验一次实际值，兜底写一次，保证不会退化成「静默失效」。
      */
     private static void applyGamma(Minecraft mc, double target) {
-        mc.options.gamma().set(target);
-        double actual = mc.options.gamma().get();
-        if (Math.abs(actual - target) > 0.05) {
-            if (GammaAccess.forceSet(mc.options.gamma(), target)) {
-                LOGGER.debug("[TaczHacker][全亮] set({}) 被原版范围拒绝，已直接写入 gamma 字段（当前 {} → {}）",
-                        target, actual, target);
+        if (GammaAccess.isWideRangeInstalled()) {
+            mc.options.gamma().set(target);
+            if (Math.abs(mc.options.gamma().get() - target) <= 0.05) {
+                return;
             }
+        }
+        if (GammaAccess.forceSet(mc.options.gamma(), target)) {
+            LOGGER.debug("[TaczHacker][全亮] 已直接写入 gamma 字段：{}（放宽范围{}）",
+                    target, GammaAccess.isWideRangeInstalled() ? "成功但值没生效" : "失败");
         }
     }
 

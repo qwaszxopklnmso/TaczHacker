@@ -44,7 +44,21 @@ import java.util.function.Function;
  *
  * 但是 1.20.1 的 gamma 不能直接设 100：{@code Options.gamma} 是
  * {@code OptionInstance<Double>}，原版 ValueSet（{@code UnitDouble}）只 validate 0.0~1.0，
- * {@code OptionInstance#set} 校验不过就只打一条 error 日志、**保留旧值**（静默失效）。
+ * 而 {@code OptionInstance#set} 校验不过时的行为**比"没反应"更糟**（反编译 `OptionInstance.java:129-133` 确认）：
+ *
+ * <pre>
+ *   public void set(T value) {
+ *       T t = this.values.validateValue(value).orElseGet(() -> {
+ *           LOGGER.error("Illegal option value " + value + " for " + this.caption);
+ *           return this.initialValue;        // ← 回落的是 initialValue，不是旧值！
+ *       });
+ *       ...
+ *   }
+ * </pre>
+ *
+ * gamma 的 initialValue 是 **0.5** ⇒ 直接 {@code set(100)} 会把亮度打回默认档 + 刷一条 error 日志。
+ * 所以 {@link FullbrightHandler} 的兜底顺序必须是「先 set() 再写字段」，或者干脆别调 set()
+ * （见 {@link #isWideRangeInstalled()}：放宽成功才用 set()，否则直接 {@link #forceSet}）。
  * 所以这里做三件事：
  * <ol>
  *   <li>换掉 {@code values} 字段 → validateValue 接受 0.0~100.0（滑块仍然映射 0.0~1.0，
@@ -81,7 +95,20 @@ public final class GammaAccess {
             Codec.doubleRange(0.0, MAX_GAMMA), Codec.BOOL
     ).xmap(either -> either.map(v -> v, b -> b ? MAX_GAMMA : 0.0), Either::left);
 
+    /** {@link #installWideRange} 是否成功放宽过（成功才敢用 {@code set()} 写 >1 的值） */
+    private static volatile boolean wideRangeInstalled = false;
+
     private GammaAccess() {
+    }
+
+    /**
+     * 取值范围是否已经放宽
+     *
+     * 为 false 时**不要**调 {@code OptionInstance#set(>1)}：那会回落成 initialValue（gamma 是 0.5）
+     * 并刷一条 error 日志，等于把亮度打回默认档。这种情况直接 {@link #forceSet}。
+     */
+    public static boolean isWideRangeInstalled() {
+        return wideRangeInstalled;
     }
 
     /**
@@ -97,6 +124,7 @@ public final class GammaAccess {
             setField(gamma, "values", wideValueSet);
             setField(gamma, "codec", WIDE_CODEC);
             installClampedLabel(gamma);
+            wideRangeInstalled = true;
             LOGGER.debug("[TaczHacker][全亮] gamma 取值范围已放宽到 0.0~{}", MAX_GAMMA);
         } catch (Throwable t) {
             // 放宽失败也只是 set() 会被拒 → applyFullbright 里还有 forceSet 兜底
