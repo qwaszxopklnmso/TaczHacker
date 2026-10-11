@@ -297,9 +297,14 @@ public class ConfigScreen {
                 .setSaveConsumer(v -> HackConfig.fullbrightEnabled = v)
                 .build());
         fullbrightCat.addEntry(e.startDoubleField(
-                Component.literal("伽马值"),
+                Component.literal("全亮强度"),
                 HackConfig.fullbrightGamma
-        ).setTooltip(Component.literal("0.0=暗，1.0=最大亮度（渲染公式饱和，超过1.0不会更亮）"))
+        ).setTooltip(Component.literal("0.0~1.0，1.0 = 最亮。\n"
+                + "实际写入的 gamma = 本值 × 100：原版 LightTexture 的插值因子不钳制，\n"
+                + "gamma 大于 1 会向外插值、最后才夹到 1.0，所以 gamma 越大越亮。\n"
+                + "原版「明亮」档（gamma=1.0）在没光源的洞穴里只有约 0.11 亮度、依旧很黑，\n"
+                + "要纯白大约需要 gamma≥11.5 —— 这就是以前「全亮开着还是黑」的原因。\n"
+                + "调小本值可以让明暗过渡自然一点（例如 0.2 → gamma 20）。"))
                 .setMin(0.0).setMax(1.0)
                 .setSaveConsumer(v -> HackConfig.fullbrightGamma = v)
                 .build());

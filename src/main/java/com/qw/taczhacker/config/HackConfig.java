@@ -225,8 +225,15 @@ public class HackConfig {
             .define("fullbright.enabled", true);
 
     private static final ForgeConfigSpec.DoubleValue FULLBRIGHT_GAMMA = BUILDER
-            .comment("伽马值（0.0=暗，1.0=最大亮度，超过1.0不会更亮因为渲染公式饱和）",
-                    "Gamma value (0.0=dark, 1.0=max brightness). Values > 1.0 have no effect due to rendering formula saturation.")
+            .comment("全亮强度（0.0~1.0，默认 1.0 = 最亮）",
+                    "内部换算成实际写入的 gamma = 本值 × 100（见 GammaAccess）。",
+                    "为什么要 ×100：原版 LightTexture 的公式是",
+                    "    color.lerp(notGamma(color), max(0, gamma))",
+                    "JOML 的 Vector3f.lerp 不钳制那个因子，gamma>1 会向外插值，最后才 clamp 到 1.0，",
+                    "所以 gamma 越大越亮。原版「明亮」档 gamma=1.0 在没光源的洞穴里只有约 0.11 亮度，",
+                    "要纯白大约需要 gamma≥11.5 —— 这正是旧版「全亮开了还是黑」的原因。",
+                    "Fullbright strength (0.0-1.0, default 1.0 = brightest). Effective gamma = value * 100;",
+                    "values above 1.0 DO brighten because the vanilla lightmap lerp factor is unclamped.")
             .defineInRange("fullbright.gamma", 1.0, 0.0, 1.0);
 
     // ============================================================
@@ -482,6 +489,13 @@ public class HackConfig {
                     "Runtime state: fullbright B-key toggle (saved automatically)")
             .define("runtime.fullbrightActive", false);
 
+    private static final ForgeConfigSpec.DoubleValue RUNTIME_SAVED_GAMMA = BUILDER
+            .comment("运行时状态：开启全亮之前的那份 gamma（0.0~1.0），关掉全亮时还回去",
+                    "为什么要存进配置：全亮期间 options.txt 里的 gamma 会被写成 100（超出原版范围），",
+                    "退出再进游戏就只剩这个 100 了，光靠内存变量记不住玩家原来的亮度。",
+                    "Runtime state: the vanilla-range gamma that was active before fullbright was turned on")
+            .defineInRange("runtime.savedGamma", 0.5, 0.0, 1.0);
+
     private static final ForgeConfigSpec.BooleanValue RUNTIME_ESP_ACTIVE = BUILDER
             .comment("运行时状态：功能8 ESP 的 J 键开关（按键时自动保存）",
                     "Runtime state: ESP J-key toggle (saved automatically)")
@@ -610,6 +624,7 @@ public class HackConfig {
         RUNTIME_XRAY_ACTIVE.set(runtimeXrayActive);
         RUNTIME_FLIGHT_ACTIVE.set(runtimeFlightActive);
         RUNTIME_FULLBRIGHT_ACTIVE.set(runtimeFullbrightActive);
+        RUNTIME_SAVED_GAMMA.set(runtimeSavedGamma);
         RUNTIME_ESP_ACTIVE.set(runtimeEspActive);
         RUNTIME_NAMETAGS_ACTIVE.set(runtimeNameTagsActive);
 
@@ -631,6 +646,7 @@ public class HackConfig {
         RUNTIME_XRAY_ACTIVE.set(runtimeXrayActive);
         RUNTIME_FLIGHT_ACTIVE.set(runtimeFlightActive);
         RUNTIME_FULLBRIGHT_ACTIVE.set(runtimeFullbrightActive);
+        RUNTIME_SAVED_GAMMA.set(runtimeSavedGamma);
         RUNTIME_ESP_ACTIVE.set(runtimeEspActive);
         RUNTIME_NAMETAGS_ACTIVE.set(runtimeNameTagsActive);
 
@@ -743,6 +759,8 @@ public class HackConfig {
     public static boolean runtimeXrayActive;
     public static boolean runtimeFlightActive;
     public static boolean runtimeFullbrightActive;
+    /** 开启全亮之前的 gamma（0.0~1.0），关掉全亮时还回去 */
+    public static double runtimeSavedGamma = 0.5;
     public static boolean runtimeEspActive;
     public static boolean runtimeNameTagsActive;
 
@@ -859,6 +877,7 @@ public class HackConfig {
             runtimeXrayActive = RUNTIME_XRAY_ACTIVE.get();
             runtimeFlightActive = RUNTIME_FLIGHT_ACTIVE.get();
             runtimeFullbrightActive = RUNTIME_FULLBRIGHT_ACTIVE.get();
+            runtimeSavedGamma = RUNTIME_SAVED_GAMMA.get();
             runtimeEspActive = RUNTIME_ESP_ACTIVE.get();
             runtimeNameTagsActive = RUNTIME_NAMETAGS_ACTIVE.get();
 
