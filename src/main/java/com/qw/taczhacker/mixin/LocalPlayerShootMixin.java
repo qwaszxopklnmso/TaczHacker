@@ -4,7 +4,6 @@ import com.qw.taczhacker.config.HackConfig;
 import com.qw.taczhacker.feature.aim.AimHandler;
 import com.qw.taczhacker.feature.aim.AimHandler.AimAngles;
 import com.qw.taczhacker.feature.fakerot.FakeRotationHandler;
-import com.qw.taczhacker.network.ServerDetector;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.LivingEntity;
@@ -48,20 +47,17 @@ public class LocalPlayerShootMixin {
      * 注入到 shoot() 方法开头（HEAD）。
      *
      * 在 Tacz 的 LocalPlayerShoot.shoot() 执行前：
-     * 1. 自动切换：如果服务端安装了本mod，由真·自瞄（子弹方向修改）处理，关闭转视角
-     * 2. 选择目标
-     * 3. 计算瞄准角度
-     * 4. 发送假旋转包到服务器（更新 ServerPlayer 的旋转）
-     * 5. 保存并修改本地玩家的旋转（确保本地计算一致）
+     * 1. 选择目标（功能1 开着且有目标时）
+     * 2. 计算瞄准角度
+     * 3. 发送假旋转包到服务器（更新 ServerPlayer 的旋转）
+     * 4. 保存并修改本地玩家的旋转（确保本地计算一致）
      *
-     * 自动切换逻辑：
-     * - 单人游戏/局域网：服务端在同一进程，ServerDetector 返回 true → 跳过转视角，但设置 pendingAngles
-     * - Forge 服务器（有本mod）：握手成功 → ServerDetector 返回 true → 跳过转视角，但设置 pendingAngles
-     * - Forge 服务器（无本mod）：握手超时 → ServerDetector 返回 false → 使用转视角
-     * - 纯客户端安装：握手失败 → ServerDetector 返回 false → 使用转视角
-     *
-     * 关键修复：即使服务端有本mod跳过了转视角，仍然要设置 pendingAngles，
-     * 让 TimelessBulletEntityMixin 能消费客户端选中的目标角度，而不是走服务器 fallback 选最近目标。
+     * 2026-10-11 起不再有"服务端有本 mod 就跳过客户端自瞄"的自动切换：
+     * 那条逻辑让客户端把瞄准整个交给服务端，而服务端在专用服务器上只能靠
+     * "自己挑最近目标 + 夹角在锥角内才修正"的兜底，实测锁不到目标（转圈开着还打地板）。
+     * 现在无论服务端装没装本 mod、能力位报什么，客户端都自己算角度并发瞄准旋转包；
+     * 同时照旧填 pendingAngles，让同进程的集成服务器（单机/局域网）和客户端预判子弹
+     * 都能拿到"客户端选中的目标角度"（服务端跨进程读不到，只能走它自己的兜底）。
      */
     @Inject(
             method = "shoot",
@@ -91,12 +87,16 @@ public class LocalPlayerShootMixin {
             // 使用 volatile 单字段而非队列，避免 Forge 类加载机制导致队列实例不一致
             AimHandler.pendingAngles = angles;
 
-            // 只有服务端「装了本mod」且「服务端自己开启了子弹自瞄」时，才跳过转视角。
-            // 只看前者会导致：服务端默认配置 aim.enabled=false，客户端不再发旋转包，
-            // 服务端也不改子弹方向 → 功能1 静默失效。
-            if (ServerDetector.isServerAimAvailable()) {
-                return;
-            }
+            // 2026-10-11 修复（联机锁不到目标 / 转圈时打地板）：
+            // 这里以前有一条 `if (ServerDetector.isServerAimAvailable()) return;` ——
+            // 只要握手报回 aim=true 就把客户端自瞄整个跳过，改指望服务端那条"真·自瞄"。
+            // 实测（debug.log：服务端能力 mod=true, aim=true）在专用服务器上那条路靠不住：
+            // 服务端的兜底是「自己挑半径内最近的生物 + 只有当子弹当前方向与目标夹角在锥角内才修正」，
+            // 于是 ① 转圈开着时服务端手里是低头 90°，子弹先朝地下飞，夹角≈90° 一次都不修正 → 打地板；
+            // ② 转圈关掉时它拽的可能是别的"最近生物"，体感就是锁不到（单机因为走客户端这条路所以正常）。
+            // 结论：客户端这条「发瞄准旋转包」的路才是可靠的（单机/局域网一直如此），
+            // 服务端装没装、报什么能力位都不影响它 —— TCP 保序保证本包一定在 shoot 包之前到。
+            // 所以现在无条件自己瞄。
 
             // 开火瞬间临时暂停低头转圈：保证这一 tick 发给服务器的是瞄准旋转，
             // 而不是被 LocalPlayerMixin 替换掉的假旋转（功能1 > 功能2）

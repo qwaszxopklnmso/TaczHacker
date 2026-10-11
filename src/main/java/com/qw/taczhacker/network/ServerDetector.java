@@ -13,9 +13,12 @@ import com.qw.taczhacker.config.HackConfig;
  * - 单人游戏/局域网 → 直接按本地配置填充能力位
  * - 远程 Forge 服务器 → 通过握手包获取
  *
- * 自动切换逻辑（供 LocalPlayerShootMixin 使用）：
- * - isServerAimAvailable() == true  → 服务端会改子弹方向，客户端不再发假旋转包
- * - isServerAimAvailable() == false → 使用转视角静默自瞄
+ * 自动切换逻辑（**2026-10-11 起已取消**）：
+ * 曾经：isServerAimAvailable() == true → 客户端跳过发假旋转包，交给服务端改弹道；
+ *        == false → 客户端自己发瞄准旋转包。
+ * 现在：客户端**无条件**自己发瞄准旋转包（见 LocalPlayerShootMixin 里的说明），
+ *       因为服务端的兜底在专用服务器上锁不住目标，反而让功能1 在联机时完全失效。
+ *       能力位仅用于显示/调试，以及单机专用的追踪弹/穿墙子弹开关判断。
  */
 public class ServerDetector {
 
@@ -65,16 +68,14 @@ public class ServerDetector {
     }
 
     /**
-     * 服务端是否真的会用子弹方向修改来实现自瞄
+     * 服务端是否报了「会用子弹方向修改来自瞄」的能力位
      *
-     * 只有这个为 true 时，客户端才可以跳过发送假旋转包。
-     *
-     * 单机/局域网固定返回 false：服务端改弹道那条路要靠 AimHandler.pendingAngles 这个
-     * 静态字段在客户端与服务端之间递角度，跨度一整个 tick，实测并不可靠（客户端那次
-     * shoot 调用会把它取空，服务端就读到 null）。所以这里让客户端照常发假旋转包 ——
-     * 那条路改的是"服务端看到的朝向"，全在客户端手里，不需要跨线程传状态。
-     *
-     * 远程服务器：取决于握手报回来的能力位。
+     * ⚠️ **不要再用它来决定是否跳过客户端自瞄**（2026-10-11 的教训）：
+     * 专用服务器上服务端只有「自己挑半径内最近的生物 + 子弹方向与目标夹角在锥角内才修正」
+     * 这条兜底，转圈开着时子弹先朝地下（夹角≈90°）根本不修正 → 打地板；转圈关掉也锁不准。
+     * 曾经客户端一旦看到 aim=true 就整个跳过自己的瞄准（连旋转包都不发），
+     * 联机于是「功能1 完全没用」，而单机因为 isSinglePlayer 分支恒为 false 所以正常。
+     * 现在客户端无条件自己瞄（见 LocalPlayerShootMixin），这个能力位只用于显示/调试。
      */
     public static boolean isServerAimAvailable() {
         if (isSinglePlayer) {
