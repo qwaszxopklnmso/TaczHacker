@@ -557,6 +557,8 @@ public class ConfigScreen {
         builder.setSavingRunnable(() -> {
             Taczhacker.LOGGER.debug("TaczHacker 配置已保存");
             HackConfig.save();
+            // 子弹端三项开关可能变了 → 重新同步给服务端（服务端与门判断用）
+            com.qw.taczhacker.network.ServerDetectorClientHandler.sendFeatureFlags();
         });
 
         return builder.build();

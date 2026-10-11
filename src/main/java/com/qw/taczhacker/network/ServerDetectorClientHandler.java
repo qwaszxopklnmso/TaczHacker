@@ -2,6 +2,7 @@ package com.qw.taczhacker.network;
 
 import com.qw.taczhacker.Taczhacker;
 import com.qw.taczhacker.config.HackConfig;
+import com.qw.taczhacker.feature.aim.AimHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.Connection;
 import net.minecraftforge.api.distmarker.Dist;
@@ -55,7 +56,10 @@ public class ServerDetectorClientHandler {
         try {
             Connection connection = mc.getConnection() == null ? null : mc.getConnection().getConnection();
             if (connection != null && Taczhacker.CHANNEL.isRemotePresent(connection)) {
-                Taczhacker.CHANNEL.sendToServer(new C2SHandshakePacket());
+                Taczhacker.CHANNEL.sendToServer(new C2SHandshakePacket(
+                        AimHandler.isActive(),
+                        HackConfig.globalEnabled && HackConfig.aimSinglePlayerHomingBullet,
+                        HackConfig.globalEnabled && HackConfig.aimSinglePlayerBulletPenetration));
                 Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 已发送握手包到远程服务器，等待回复...");
             } else {
                 ServerDetector.setServerCapabilities(false, false, false, false);
@@ -64,6 +68,32 @@ public class ServerDetectorClientHandler {
         } catch (Throwable t) {
             ServerDetector.setServerCapabilities(false, false, false, false);
             Taczhacker.LOGGER.warn("[TaczHacker][服务端检测] 握手异常，已按无服务端能力处理（不影响游戏）", t);
+        }
+    }
+
+    /**
+     * 把「客户端当前开着哪些子弹端功能」重新同步给服务端
+     *
+     * 服务端拿它和自己的配置做与门（详见 {@link ClientFeatureFlags}）。
+     * 调用时机：功能1 的 N 键切换、配置界面保存（这两处会让三项里的至少一项变化）。
+     * 集成服务器不用发：客户端与服务端同进程、共用同一份配置，服务端直接读配置。
+     */
+    public static void sendFeatureFlags() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getConnection() == null || mc.isLocalServer()) return;
+        try {
+            Connection connection = mc.getConnection().getConnection();
+            if (connection == null || !Taczhacker.CHANNEL.isRemotePresent(connection)) return;
+            Taczhacker.CHANNEL.sendToServer(new C2SHandshakePacket(
+                    AimHandler.isActive(),
+                    HackConfig.globalEnabled && HackConfig.aimSinglePlayerHomingBullet,
+                    HackConfig.globalEnabled && HackConfig.aimSinglePlayerBulletPenetration));
+            Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 已同步客户端能力位：aim={}, homing={}, penetration={}",
+                    AimHandler.isActive(),
+                    HackConfig.globalEnabled && HackConfig.aimSinglePlayerHomingBullet,
+                    HackConfig.globalEnabled && HackConfig.aimSinglePlayerBulletPenetration);
+        } catch (Throwable t) {
+            Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 同步客户端能力位失败（忽略）", t);
         }
     }
 

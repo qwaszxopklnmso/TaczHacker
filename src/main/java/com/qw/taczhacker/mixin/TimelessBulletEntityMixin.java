@@ -3,7 +3,7 @@ package com.qw.taczhacker.mixin;
 import com.qw.taczhacker.config.HackConfig;
 import com.qw.taczhacker.feature.aim.AimHandler;
 import com.qw.taczhacker.feature.aim.AimHandler.AimAngles;
-import com.qw.taczhacker.network.ServerDetector;
+import com.qw.taczhacker.network.ClientFeatureFlags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.Projectile;
@@ -127,7 +127,7 @@ public class TimelessBulletEntityMixin {
         // 使用 volatile 单字段而非队列，避免 Forge 类加载机制导致队列实例不一致
         // 注意：此方法在服务端和客户端都会调用。
         // - 集成服务器（单机/局域网）：pendingAngles 在同一 JVM 中由客户端线程设置，可读取
-        // - 专用服务器（Forge 服务器）：pendingAngles 在不同 JVM，始终为 null，走 fallback
+        // - 专用服务器（Forge 服务器）：pendingAngles 在不同 JVM，始终为 null，走方案2
         // 不能使用 Minecraft.getInstance() 检查所有者，因为服务端不存在 Minecraft 类！
         AimAngles angles = AimHandler.pendingAngles;
         if (angles != null) {
@@ -139,33 +139,26 @@ public class TimelessBulletEntityMixin {
             return;
         }
 
-        // 方案2（fallback）：pendingAngles 为 null
+        // ============================================================
+        // 方案2（2026-10-11 新增）：专用服务器的「真·自瞄」= 零散布方向覆盖
+        // ============================================================
         //
-        // 只做「修正」而不是「凭空转向」：如果子弹当前飞行方向与目标方向的夹角
-        // 超过配置的追踪锥角，说明这一枪本来就不是冲着目标去的（例如对天开枪、
-        // 打墙、霰弹枪的多余弹丸），此时保持原方向，避免子弹诡异拐弯打到路人。
+        // 以前这里走的是「服务端自己挑半径内最近的生物，夹角在锥角内才修正」，
+        // 实测在专用服务器上根本锁不住：挑的目标跟玩家准星无关，转圈开着时子弹先朝地下
+        // （夹角≈90°）一次都不修正，转圈关掉也是拽它自己挑的那个"最近生物"。
         //
-        // 单机 / 局域网直接跳过：集成服务器跟客户端同进程，角度递不过来只说明这一枪
-        // 没选中目标（或者连发时被前一颗取空了），这时候再凭空挑个"最近的生物"
-        // 改弹道，纯粹是帮倒忙。只有连专用服务器才需要它 —— 那边跨 JVM，
-        // pendingAngles 永远读不到，服务端自选目标是唯一手段。
-        if (ServerDetector.isIntegratedServer()) {
-            return;
-        }
-
-        if (self.getOwner() instanceof LivingEntity shooter) {
-            LivingEntity target = AimHandler.selectTargetServerSide(shooter);
-            if (target != null && target.isAlive()) {
-                Vec3 toTarget = target.getEyePosition(1.0f).subtract(self.position());
-                if (toTarget.lengthSqr() > 1.0E-6) {
-                    Vec3 targetDir = toTarget.normalize();
-                    double coneAngle = Math.toRadians(HackConfig.aimConeAngle);
-                    double dot = currentMotion.normalize().dot(targetDir);
-                    double angle = Math.acos(Math.max(-1.0, Math.min(1.0, dot)));
-                    if (angle <= coneAngle) {
-                        self.setDeltaMovement(targetDir.scale(speed));
-                    }
-                }
+        // 现在改用服务端**自己手里那份朝向**：客户端的 LocalPlayerShootMixin 在 shoot 之前
+        // 已经发过 ServerboundMovePlayerPacket.Rot（瞄准角），TCP 保序保证它先到，
+        // 所以此刻 ServerPlayer.getLookAngle() 就是客户端算好的瞄准方向。
+        // 用它重建 deltaMovement = 把 Tacz 刚加上去的**散布去掉** → 联机也零散布。
+        //
+        // 与门（作者要求）：服务端 aim.enabled 开着（本方法开头的判断）**且**
+        // 该玩家客户端报过"我在用功能1"（ClientFeatureFlags，来自握手/开关变化时的上报）。
+        // 这样原版客户端不会因为你服务器的配置而被改弹道。
+        if (self.getOwner() instanceof LivingEntity shooter && ClientFeatureFlags.wantsAim(shooter)) {
+            Vec3 look = shooter.getLookAngle();
+            if (look.lengthSqr() > 1.0E-6) {
+                self.setDeltaMovement(look.normalize().scale(speed));
             }
         }
     }
@@ -230,6 +223,11 @@ public class TimelessBulletEntityMixin {
 
         // 获取子弹的 shooter
         if (!(self.getOwner() instanceof LivingEntity shooter)) {
+            return;
+        }
+
+        // 与门（作者要求）：服务端配置开着（上面两项）**且** 该玩家客户端也开着追踪弹
+        if (!ClientFeatureFlags.wantsHoming(shooter)) {
             return;
         }
 
@@ -361,9 +359,14 @@ public class TimelessBulletEntityMixin {
             remap = false
     )
     private void onHitBlock(BlockHitResult hitResult, Vec3 vec3_1, Vec3 vec3_2, CallbackInfo ci) {
-        // 检查是否启用了穿墙子弹（仅单机有效）
+        // 检查是否启用了穿墙子弹（服务端配置）
         if (HackConfig.globalEnabled && HackConfig.aimSinglePlayerBulletPenetration) {
             Projectile self = (Projectile) (Object) this;
+            // 与门（作者要求）：服务端配置开着 **且** 该玩家客户端也开着穿墙子弹
+            if (!(self.getOwner() instanceof LivingEntity shooter)
+                    || !ClientFeatureFlags.wantsPenetration(shooter)) {
+                return;
+            }
             // 根据碰撞法线方向把子弹位置往前推 1.5 格
             Vec3 normal = Vec3.atLowerCornerOf(hitResult.getDirection().getNormal());
             Vec3 newPos = self.position().add(normal.scale(1.5));

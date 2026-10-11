@@ -91,6 +91,39 @@ public class ServerDetector {
         return isServerHasTaczHacker() && serverHomingEnabled;
     }
 
+    // ============================================================
+    // 双端与门（作者要求：服务端当前功能=true && 客户端当前功能=true 才生效）
+    // ============================================================
+
+    /**
+     * 「真·自瞄」是否真正生效：客户端功能1 开着 **且** 服务端也开着子弹自瞄
+     *
+     * 单机/局域网（集成服务器）就是同一份配置，直接看客户端这份即可。
+     */
+    public static boolean isAimEffective() {
+        if (!HackConfig.globalEnabled || !HackConfig.aimEnabled || !HackConfig.runtimeAimActive) {
+            return false;
+        }
+        if (isSinglePlayer) {
+            return true;
+        }
+        return isServerAimAvailable();
+    }
+
+    /** 「追踪弹」是否真正生效：客户端开关 **且** 服务端也开着 */
+    public static boolean isHomingEffective() {
+        return HackConfig.globalEnabled
+                && HackConfig.aimSinglePlayerHomingBullet
+                && isServerHomingEnabled();
+    }
+
+    /** 「穿墙子弹」是否真正生效：客户端开关 **且** 服务端也开着 */
+    public static boolean isPenetrationEffective() {
+        return HackConfig.globalEnabled
+                && HackConfig.aimSinglePlayerBulletPenetration
+                && isServerPenetrationEnabled();
+    }
+
     public static boolean isServerPenetrationEnabled() {
         if (isSinglePlayer) {
             return HackConfig.aimSinglePlayerBulletPenetration;

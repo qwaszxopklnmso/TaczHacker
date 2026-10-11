@@ -3,6 +3,7 @@ package com.qw.taczhacker.feature.aim;
 import com.qw.taczhacker.config.HackConfig;
 import com.qw.taczhacker.feature.esp.EspRenderer;
 import com.qw.taczhacker.keybind.KeyBindings;
+import com.qw.taczhacker.network.ServerDetectorClientHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
@@ -68,6 +69,8 @@ public class AimHandler {
         aimActive = value;
         HackConfig.runtimeAimActive = value;
         HackConfig.saveRuntime();
+        // 功能1 的开关变了 → 同步给服务端（服务端的零散布方向覆盖要与门判断）
+        ServerDetectorClientHandler.sendFeatureFlags();
     }
 
     /**
@@ -285,27 +288,6 @@ public class AimHandler {
         pitch += (float) HackConfig.aimRecoilCompensation;
 
         return new AimAngles(yaw, pitch);
-    }
-
-    /**
-     * 服务器端选目标（不依赖客户端 LocalPlayer）
-     *
-     * 在 TimelessBulletEntityMixin 中，当 pendingAngles 为 null 时，
-     * 直接在服务器线程选目标，无视玩家视角方向和墙体遮挡。
-     * 这是"双端/本地"模式下真·自瞄的最终保障。
-     *
-     * @param shooter 子弹的发射者（ServerPlayer 或任意 LivingEntity）
-     * @return 最近的可攻击目标，或 null
-     */
-    public static LivingEntity selectTargetServerSide(LivingEntity shooter) {
-        if (!isActive()) return null;
-
-        double radius = HackConfig.aimLockRadius;
-        AABB searchBox = shooter.getBoundingBox().inflate(radius);
-        var level = shooter.level();
-        if (level == null) return null;
-
-        return selectTargetInBox(level, searchBox, shooter.position(), shooter, radius);
     }
 
     /**

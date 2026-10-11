@@ -79,13 +79,17 @@ public class HudOverlayHandler {
         // 功能9：实体信息牌（按 K 切换）
         entries.add(new Entry("信息牌", () -> HackConfig.nameTagsEnabled,
                 () -> NameTagsHandler.isActive()));
-        // 单机专属的两个「真·」：没有按键，纯配置项，所以 alwaysShow。
-        // 显示的是「实际生效」而不是「本地配置开着」—— 联机时服务端没开就是 OFF。
-        // 不 alwaysShow 的话，默认关着时这两行根本不出现，等于没法在 HUD 里看到它们
+        // 「真·」三项：没有按键，纯配置项，所以 alwaysShow。
+        // 显示的是「实际生效」而不是「本地配置开着」—— 2026-10-11 起都是**双端与门**：
+        // 客户端这一项开着 **且** 服务端也开着，才 ON（联机时服务端没开/没装就是 OFF）。
+        // 不 alwaysShow 的话，默认关着时这几行根本不出现，等于没法在 HUD 里看到它们
         entries.add(new Entry("追踪弹", () -> HackConfig.aimSinglePlayerHomingBullet,
-                () -> ServerDetector.isServerHomingEnabled(), true));
+                () -> ServerDetector.isHomingEffective(), true));
         entries.add(new Entry("穿墙子弹", () -> HackConfig.aimSinglePlayerBulletPenetration,
-                () -> ServerDetector.isServerPenetrationEnabled(), true));
+                () -> ServerDetector.isPenetrationEffective(), true));
+        // 真·自瞄：服务端用你客户端发过去的瞄准角做「零散布」方向覆盖（联机也生效）
+        entries.add(new Entry("真·自瞄", () -> HackConfig.aimEnabled,
+                () -> ServerDetector.isAimEffective(), true));
         // 附加：Tacz 假开镜（服务端认为你在开镜，客户端 FOV / 灵敏度 / 移速全不变）
         entries.add(new Entry("假开镜", () -> HackConfig.taczFakeAim,
                 () -> FakeAimHandler.isFakeAiming(), true));
