@@ -162,6 +162,38 @@ public class FakeRotationHandler {
     }
 
     /**
+     * 开火前要不要把真实朝向发给服务器（供 Tacz 射击注入使用）
+     *
+     * 用 enabled（玩家意图）而不是 isActive()：即使正处在暂停窗口里
+     * （比如按住功能3 视角锁定期间），开火这一 tick 也应该保证服务器拿到的是真实朝向。
+     */
+    public static boolean shouldRevealRealRotationOnShoot() {
+        return enabled;
+    }
+
+    /**
+     * 开火瞬间：把**真实**朝向发给服务器，并暂停假旋转若干 tick。
+     *
+     * 为什么必须补这个包：
+     * Tacz 的 `ClientMessagePlayerShoot` 只带 timestamp + chargeProgress，**不带方向**，
+     * 子弹方向由服务端按 `ServerPlayer` 当时的 yRot/xRot 算（`LocalPlayerShoot.java:249` 发这个包）。
+     * 低头转圈一直在把「低头 fakerotPitchAngle（默认 90°）」同步给服务器，
+     * 所以开火时服务端以为你在看脚底 → 子弹打地板；爆炸弹直接在脚底炸开把玩家炸飞。
+     *
+     * 时序保证：本方法在 `LocalPlayerShoot#shoot()` 的 HEAD 调用，
+     * 而 Tacz 的 shoot 包在 shoot() 内部才发（第 249 行）→ 同一通道 TCP 保序，
+     * 服务端处理射击时读到的已经是真实朝向。
+     */
+    public static void revealRealRotationForShot(LocalPlayer player) {
+        suspendFor(SUSPEND_TICKS);
+        ticksSinceLastPacket = 0;
+        if (player.connection == null) return;
+        player.connection.send(new ServerboundMovePlayerPacket.Rot(
+                player.getYRot(), player.getXRot(), player.onGround()
+        ));
+    }
+
+    /**
      * 获取当前假旋转的 yaw
      */
     public static float getFakeYaw() {

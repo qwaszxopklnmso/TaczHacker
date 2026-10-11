@@ -33,6 +33,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * 4. 射击完成后，恢复本地玩家的旋转（不影响本地视角）
  *
  * 由于 TCP 保证了包顺序，假旋转包一定在 shoot 包之前到达服务器。
+ *
+ * 2026-10-11 追加修复（功能2 低头转圈把子弹带到脚底）：
+ * 上面这条「先发旋转包」的逻辑原先只在这一 tick **选中了目标**时才跑，
+ * 于是功能1 关掉、或者功能1 开着但范围内没目标时直接 return，
+ * 服务器手里仍是低头转圈同步过去的「低头 90°」→ 子弹打地板，爆炸弹在脚底炸开。
+ * 现在无论有没有目标，只要转圈开着，开火前都会把**真实**朝向发给服务器
+ * （见 {@code FakeRotationHandler#revealRealRotationForShot}）。
  */
 @Mixin(value = com.tacz.guns.client.gameplay.LocalPlayerShoot.class, remap = false)
 public class LocalPlayerShootMixin {
@@ -63,79 +70,76 @@ public class LocalPlayerShootMixin {
             remap = false
     )
     private void onShootBefore(CallbackInfoReturnable<?> cir) {
-        // 检查总开关、功能1配置开关和运行时按键开关（默认 N）
-        if (!AimHandler.isActive()) {
-            return;
-        }
-
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null) {
             return;
         }
 
-        // 检查"仅持枪时生效"选项
-        if (HackConfig.aimRequireGunEquipped) {
-            // 检查主手或副手是否持枪
-            // Tacz 的枪械在主手时，item 是 GunItem 类型
-            boolean hasGun = false;
-            var mainHandItem = player.getMainHandItem();
-            if (mainHandItem.getItem() instanceof com.tacz.guns.item.ModernKineticGunItem) {
-                hasGun = true;
+        // ========== 功能1：选目标 + 算瞄准角 ==========
+        AimAngles angles = null;
+        if (AimHandler.isActive() && isGunEquipped(player)) {
+            LivingEntity target = AimHandler.selectTarget(player);
+            if (target != null) {
+                angles = AimHandler.calculateAimAngles(player, target);
             }
-            if (!hasGun) {
-                var offHandItem = player.getOffhandItem();
-                if (offHandItem.getItem() instanceof com.tacz.guns.item.ModernKineticGunItem) {
-                    hasGun = true;
-                }
-            }
-            if (!hasGun) {
+        }
+
+        if (angles != null) {
+            // 始终设置 pendingAngles，供 TimelessBulletEntityMixin 消费
+            // 无论服务端是否有本mod，客户端选中的目标角度都应该传递给子弹方向修改器
+            // 使用 volatile 单字段而非队列，避免 Forge 类加载机制导致队列实例不一致
+            AimHandler.pendingAngles = angles;
+
+            // 只有服务端「装了本mod」且「服务端自己开启了子弹自瞄」时，才跳过转视角。
+            // 只看前者会导致：服务端默认配置 aim.enabled=false，客户端不再发旋转包，
+            // 服务端也不改子弹方向 → 功能1 静默失效。
+            if (ServerDetector.isServerAimAvailable()) {
                 return;
             }
-        }
 
-        // ========== 目标选择（无论是否转视角，都需要） ==========
-        // 选择目标
-        LivingEntity target = AimHandler.selectTarget(player);
-        if (target == null) {
+            // 开火瞬间临时暂停低头转圈：保证这一 tick 发给服务器的是瞄准旋转，
+            // 而不是被 LocalPlayerMixin 替换掉的假旋转（功能1 > 功能2）
+            FakeRotationHandler.suspendFor(FakeRotationHandler.SUSPEND_TICKS);
+
+            // 保存原始旋转（使用标记位确保即使旋转为 (0,0) 也能正确恢复）
+            AimHandler.originalYaw = player.getYRot();
+            AimHandler.originalPitch = player.getXRot();
+            AimHandler.hasOriginalRotation = true;
+
+            // 发送假旋转包到服务器（更新 ServerPlayer 的旋转）
+            // 这个包一定在 shoot 包之前到达（TCP 保序）
+            AimHandler.sendFakeRotationPacket(player, angles.yaw, angles.pitch);
+
+            // 修改本地玩家的旋转（确保 LocalPlayerShoot.shoot() 内的本地计算使用正确角度）
+            player.setYRot(angles.yaw);
+            player.setXRot(angles.pitch);
             return;
         }
 
-        // 计算瞄准角度（含提前量预测）
-        AimAngles angles = AimHandler.calculateAimAngles(player, target);
-        if (angles == null) {
-            return;
+        // ========== 功能2 修复：没在自瞄也要让服务端看到真实朝向 ==========
+        // 2026-10-11 修「低头转圈时子弹打地板、爆炸弹把自己炸飞」：
+        // 老实现只在这一 tick 选中了目标时才处理旋转，于是「功能1 关掉」或者
+        // 「功能1 开着但范围内没目标」时直接 return，服务器手里仍是低头转圈同步过去的
+        // 「低头 90°」→ Tacz 服务端按这个朝向生成子弹（见文件头的说明：shoot 包不带方向）
+        // → 子弹直接打脚底。这里补上：只要转圈开着，开火前先把真实朝向发给服务器，
+        // 并暂停转圈几 tick（TCP 保序，本包在 shoot 包之前到）。
+        if (FakeRotationHandler.shouldRevealRealRotationOnShoot()) {
+            FakeRotationHandler.revealRealRotationForShot(player);
         }
+    }
 
-        // 始终设置 pendingAngles，供 TimelessBulletEntityMixin 消费
-        // 无论服务端是否有本mod，客户端选中的目标角度都应该传递给子弹方向修改器
-        // 使用 volatile 单字段而非队列，避免 Forge 类加载机制导致队列实例不一致
-        AimHandler.pendingAngles = angles;
-
-        // ========== 自动切换 ==========
-        // 只有服务端「装了本mod」且「服务端自己开启了子弹自瞄」时，才跳过转视角。
-        // 只看前者会导致：服务端默认配置 aim.enabled=false，客户端不再发旋转包，
-        // 服务端也不改子弹方向 → 功能1 静默失效。
-        if (ServerDetector.isServerAimAvailable()) {
-            return;
+    /**
+     * 「仅持枪时生效」检查：主手或副手拿着 Tacz 枪械
+     */
+    private boolean isGunEquipped(LocalPlayer player) {
+        if (!HackConfig.aimRequireGunEquipped) {
+            return true;
         }
-
-        // 开火瞬间临时暂停低头转圈：保证这一 tick 发给服务器的是瞄准旋转，
-        // 而不是被 LocalPlayerMixin 替换掉的假旋转（功能1 > 功能2）
-        FakeRotationHandler.suspendFor(FakeRotationHandler.SUSPEND_TICKS);
-
-        // 保存原始旋转（使用标记位确保即使旋转为 (0,0) 也能正确恢复）
-        AimHandler.originalYaw = player.getYRot();
-        AimHandler.originalPitch = player.getXRot();
-        AimHandler.hasOriginalRotation = true;
-
-        // 发送假旋转包到服务器（更新 ServerPlayer 的旋转）
-        // 这个包一定在 shoot 包之前到达（TCP 保序）
-        AimHandler.sendFakeRotationPacket(player, angles.yaw, angles.pitch);
-
-        // 修改本地玩家的旋转（确保 LocalPlayerShoot.shoot() 内的本地计算使用正确角度）
-        player.setYRot(angles.yaw);
-        player.setXRot(angles.pitch);
+        if (player.getMainHandItem().getItem() instanceof com.tacz.guns.item.ModernKineticGunItem) {
+            return true;
+        }
+        return player.getOffhandItem().getItem() instanceof com.tacz.guns.item.ModernKineticGunItem;
     }
 
     /**

@@ -135,7 +135,11 @@ public class ConfigScreen {
         fakerotCat.addEntry(e.startBooleanToggle(
                 Component.literal("转圈开关"),
                 HackConfig.fakerotEnabled
-        ).setSaveConsumer(v -> HackConfig.fakerotEnabled = v).build());
+        ).setTooltip(Component.literal("他人视角中角色低头转圈，本地视角完全正常。\n"
+                + "开火（Tacz 枪械）那一 tick 会把真实朝向补发给服务器：\n"
+                + "Tacz 的子弹方向是服务端按你的朝向算的，不补的话会按「低头 90°」打向脚底，\n"
+                + "爆炸弹（火箭/榴弹）会在脚底炸开把自己炸飞。"))
+                .setSaveConsumer(v -> HackConfig.fakerotEnabled = v).build());
         fakerotCat.addEntry(e.startDoubleField(
                 Component.literal("低头角度（度）"),
                 HackConfig.fakerotPitchAngle
