@@ -285,6 +285,32 @@ public class HackConfig {
             .defineInRange("parcool.slideSyncInterval", 6, 0, 100);
 
     // ============================================================
+    // 功能10：自动重连
+    // ============================================================
+    private static final ForgeConfigSpec.BooleanValue AUTO_RECONNECT_ENABLED = BUILDER
+            .comment("功能10：自动重连。被服务器踢出或者掉线后，在「连接中断」界面上显示倒计时，\n"
+                    + "倒计时结束自动连回上一次进的联机服务器；也可以点界面上的「立即重连」马上连。\n"
+                    + "只在联机时有效：单机存档、局域网临时端口都不参与。\n"
+                    + "想中途取消：点界面上除「立即重连」以外的按钮（例如原版的「返回服务器列表」），\n"
+                    + "或者点我们加的「取消自动重连」。",
+                    "Auto reconnect: after being kicked or losing the connection, show a countdown on the disconnect "
+                    + "screen and reconnect to the last multiplayer server (or immediately via the button).")
+            .define("autoreconnect.enabled", true);
+
+    private static final ForgeConfigSpec.IntValue AUTO_RECONNECT_DELAY = BUILDER
+            .comment("功能10：自动重连的倒计时秒数（默认 10）。",
+                    "Auto reconnect countdown, in seconds.")
+            .defineInRange("autoreconnect.delaySeconds", 10, 1, 60);
+
+    private static final ForgeConfigSpec.IntValue AUTO_RECONNECT_MAX_ATTEMPTS = BUILDER
+            .comment("功能10：最多自动重连几次，0 = 不限次数（默认）。\n"
+                    + "连不上时会出现新的「连接中断」界面并继续倒计时，所以这个上限是防死循环用的；\n"
+                    + "成功进入服务器后计数自动清零。",
+                    "Max auto-reconnect attempts; 0 = unlimited (default). "
+                    + "The counter is reset after a successful join.")
+            .defineInRange("autoreconnect.maxAttempts", 0, 0, 100);
+
+    // ============================================================
     // 功能8：玩家 ESP（准心连线）
     // ============================================================
     private static final ForgeConfigSpec.BooleanValue ESP_ENABLED = BUILDER
@@ -545,6 +571,11 @@ public class HackConfig {
         PARCOOL_UNLOCK_ALL_ACTIONS.set(parcoolUnlockAllActions);
         PARCOOL_SLIDE_SYNC_INTERVAL.set(parcoolSlideSyncInterval);
 
+        // 功能10
+        AUTO_RECONNECT_ENABLED.set(autoReconnectEnabled);
+        AUTO_RECONNECT_DELAY.set(autoReconnectDelaySeconds);
+        AUTO_RECONNECT_MAX_ATTEMPTS.set(autoReconnectMaxAttempts);
+
         // 功能8
         ESP_ENABLED.set(espEnabled);
         ESP_MAX_DISTANCE.set(espMaxDistance);
@@ -671,6 +702,11 @@ public class HackConfig {
     public static boolean parcoolUnlockAllActions;
     public static int parcoolSlideSyncInterval;
 
+    // 功能10：自动重连
+    public static boolean autoReconnectEnabled;
+    public static int autoReconnectDelaySeconds;
+    public static int autoReconnectMaxAttempts;
+
     // 功能8：玩家 ESP
     public static boolean espEnabled;
     public static double espMaxDistance;
@@ -780,6 +816,11 @@ public class HackConfig {
             parcoolSteerableSlide = PARCOOL_STEERABLE_SLIDE.get();
             parcoolUnlockAllActions = PARCOOL_UNLOCK_ALL_ACTIONS.get();
             parcoolSlideSyncInterval = PARCOOL_SLIDE_SYNC_INTERVAL.get();
+
+            // 功能10
+            autoReconnectEnabled = AUTO_RECONNECT_ENABLED.get();
+            autoReconnectDelaySeconds = AUTO_RECONNECT_DELAY.get();
+            autoReconnectMaxAttempts = AUTO_RECONNECT_MAX_ATTEMPTS.get();
 
             // 功能8
             espEnabled = ESP_ENABLED.get();

@@ -492,6 +492,37 @@ public class ConfigScreen {
                 .setSaveConsumer(v -> HackConfig.nameTagsBackground = v)
                 .build());
 
+        // ============================================================
+        // 功能10：自动重连
+        // ============================================================
+        ConfigCategory reconnectCat = builder.getOrCreateCategory(Component.literal("功能10：自动重连"));
+        reconnectCat.addEntry(e.startBooleanToggle(
+                Component.literal("自动重连开关"),
+                HackConfig.autoReconnectEnabled
+        ).setTooltip(Component.literal("被服务器踢出/掉线后，在「连接中断」界面下方显示倒计时，\n"
+                + "倒计时结束自动连回上一次进的联机服务器。\n"
+                + "界面上还会多出「立即重连」和「取消自动重连」两个按钮。\n"
+                + "只在联机时有效（单机存档、局域网临时端口都不参与）。"))
+                .setSaveConsumer(v -> HackConfig.autoReconnectEnabled = v)
+                .build());
+        reconnectCat.addEntry(e.startIntField(
+                Component.literal("倒计时（秒）"),
+                HackConfig.autoReconnectDelaySeconds
+        ).setTooltip(Component.literal("1 ~ 60，默认 10 秒。\n"
+                + "倒计时期间点「立即重连」可以马上连，点别的按钮就取消。"))
+                .setMin(1).setMax(60)
+                .setSaveConsumer(v -> HackConfig.autoReconnectDelaySeconds = v)
+                .build());
+        reconnectCat.addEntry(e.startIntField(
+                Component.literal("最大重连次数"),
+                HackConfig.autoReconnectMaxAttempts
+        ).setTooltip(Component.literal("0 = 不限次数（默认）。\n"
+                + "连不上时会重新出现「连接中断」界面并再次倒计时，\n"
+                + "这个上限是防死循环用的；成功进服后计数自动清零。"))
+                .setMin(0).setMax(100)
+                .setSaveConsumer(v -> HackConfig.autoReconnectMaxAttempts = v)
+                .build());
+
         // 附加功能
         ConfigCategory miscCat = builder.getOrCreateCategory(Component.literal("附加功能"));
         miscCat.addEntry(e.startBooleanToggle(
