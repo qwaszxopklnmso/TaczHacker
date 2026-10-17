@@ -76,7 +76,7 @@ public class HackConfig {
                     + "Take the 'speed' field from the Tacz ammo JSON (data/<pack>/tacz/ammo/*.json), "
                     + "usually 120-400. Converted to blocks/tick as speed / 20. "
                     + "Set to 0 to disable prediction (aim at current position).")
-            .defineInRange("aim.bulletSpeed", 300.0, 0.0, 2000.0);
+            .defineInRange("aim.bulletSpeed", 170.0, 0.0, 2000.0);
 
     private static final ForgeConfigSpec.BooleanValue AIM_TRUE_AIM = BUILDER
             .comment("【真·自瞄】零散布方向覆盖：开火时服务端用你客户端的瞄准角重建子弹方向，"
@@ -97,13 +97,22 @@ public class HackConfig {
                     + "negative = compensate up. Start with 1.0.")
             .defineInRange("aim.recoilCompensation", 0.1, -20.0, 20.0);
 
-    // 单机/局域网专属
+    // ============================================================
+    // 三项子弹端功能（真·自瞄 / 追踪弹 / 穿墙子弹）
+    //
+    // 生效规则 = 双端与门：**服务端开着 且 该玩家客户端也开着**，缺一个就不生效。
+    // 单机/局域网时代码里服务端与客户端共用同一份配置，所以只要这一份开着就行；
+    // 专用服务器则要服务器那份 taczhacker-common.toml 也开着（各自独立配置）。
+    // ============================================================
+
     private static final ForgeConfigSpec.BooleanValue AIM_SINGLE_PLAYER_BULLET_PENETRATION = BUILDER
-            .comment("【仅单机/局域网有效】穿墙子弹：子弹穿透方块", "SINGLE PLAYER ONLY: Bullet penetrates blocks")
+            .comment("【双端与门】穿墙子弹：子弹穿透方块（服务端与客户端都开着才生效）",
+                    "[AND] Bullet penetrates blocks (requires enabled on BOTH server and client)")
             .define("aim.singlePlayerBulletPenetration", false);
 
     private static final ForgeConfigSpec.BooleanValue AIM_SINGLE_PLAYER_HOMING_BULLET = BUILDER
-            .comment("【仅单机/局域网有效】真·追踪弹：子弹飞行中转向目标", "SINGLE PLAYER ONLY: Homing bullet")
+            .comment("【双端与门】真·追踪弹：子弹飞行中转向目标（服务端与客户端都开着才生效）",
+                    "[AND] Homing bullet (requires enabled on BOTH server and client)")
             .define("aim.singlePlayerHomingBullet", false);
 
     // ============================================================

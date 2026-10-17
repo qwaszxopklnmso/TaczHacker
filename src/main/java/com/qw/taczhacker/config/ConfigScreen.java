@@ -125,15 +125,15 @@ public class ConfigScreen {
                 .setSaveConsumer(v -> HackConfig.aimTrueAim = v)
                 .build());
         aimCat.addEntry(e.startBooleanToggle(
-                Component.literal("[单机]穿墙子弹"),
+                Component.literal("[双端]穿墙子弹"),
                 HackConfig.aimSinglePlayerBulletPenetration
-        ).setTooltip(Component.literal("仅单机/局域网有效：子弹穿透方块"))
+        ).setTooltip(Component.literal("服务端与客户端都开着才生效（缺一个就不生效）"))
                 .setSaveConsumer(v -> HackConfig.aimSinglePlayerBulletPenetration = v)
                 .build());
         aimCat.addEntry(e.startBooleanToggle(
-                Component.literal("[单机]真·追踪弹"),
+                Component.literal("[双端]真·追踪弹"),
                 HackConfig.aimSinglePlayerHomingBullet
-        ).setTooltip(Component.literal("仅单机/局域网有效：子弹飞行中转向目标"))
+        ).setTooltip(Component.literal("服务端与客户端都开着才生效（缺一个就不生效）"))
                 .setSaveConsumer(v -> HackConfig.aimSinglePlayerHomingBullet = v)
                 .build());
 

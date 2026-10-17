@@ -135,7 +135,7 @@ public class TimelessBulletEntityMixin {
         // - 集成服务器（单机/局域网）：pendingAngles 在同一 JVM 中由客户端线程设置，可读取
         // - 专用服务器（Forge 服务器）：pendingAngles 在不同 JVM，始终为 null，走方案2
         // 不能使用 Minecraft.getInstance() 检查所有者，因为服务端不存在 Minecraft 类！
-        AimAngles angles = AimHandler.pendingAngles;
+        AimAngles angles = HackConfig.aimTrueAim ? AimHandler.pendingAngles : null;
         if (angles != null) {
             // 消费 pendingAngles，防止重复使用
             AimHandler.pendingAngles = null;
@@ -163,7 +163,10 @@ public class TimelessBulletEntityMixin {
         // 与门（作者要求）：服务端 aim.enabled 开着（本方法开头的判断）**且**
         // 该玩家客户端报过"我在用功能1"（ClientFeatureFlags，来自握手/开关变化时的上报）。
         // 这样原版客户端不会因为你服务器的配置而被改弹道。
-        if (self.getOwner() instanceof LivingEntity shooter
+        // 与门（作者要求）：**服务端 aim.trueAim 开着** 且 该玩家客户端也开着「真·自瞄」，
+        // 缺一个就不覆盖方向（子弹保留 Tacz 原版散布）。
+        if (HackConfig.aimTrueAim
+                && self.getOwner() instanceof LivingEntity shooter
                 && ClientFeatureFlags.wantsAim(shooter)
                 && ClientFeatureFlags.wantsTrueAim(shooter)) {
             Vec3 look = shooter.getLookAngle();
