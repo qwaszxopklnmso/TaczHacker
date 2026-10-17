@@ -337,12 +337,22 @@ public class TimelessBulletEntityMixin {
     /**
      * 注入到 onHitBlock() 方法开头，用于穿墙子弹。
      *
-     * 当启用了穿墙子弹时，跳过方块碰撞处理，并根据碰撞法线方向
-     * 把子弹位置往前推 1.5 格，让它"穿过"墙壁继续飞行。
+     * 当启用了穿墙子弹时，跳过方块碰撞处理，并沿**子弹运动方向**把子弹
+     * 往前推 1.5 格，让它"穿过"墙壁继续飞行。
      *
-     * 关键：不仅要推子弹位置，还要恢复 deltaMovement（因为 onBulletTick
-     * 的 rayTrace 截断后，后续的碰撞检测已经影响了子弹的运动）。
-     * 我们取子弹的 deltaMovement 长度，沿原方向继续飞行。
+     * ⚠️ 2026-10-12 修：旧实现用的是 {@code hitResult.getDirection()}（命中面的**外法线**）
+     * 来推子弹 —— 那是指向子弹来向的一侧：往 +X 飞撞上墙，命中面是墙的西面，
+     * getDirection() == WEST，normal = (-1,0,0)，于是 {@code pos + normal*1.5}
+     * 把子弹**往后**推了 1.5 格（注释里写的"往前推"是反的）。
+     * 时序上更糟：Tacz 的 {@code onBulletTick} 里 rayTrace 用的是**未移动**的起点，
+     * 我们注入时 {@code self.position()} 仍是起点，位置前进是之后在 {@code super.tick()}
+     * 里才做的，于是每 tick 的有效位移 = 起点 − 1.5·法线 + deltaMovement。
+     * 设每 tick 位移 m、命中时距墙面 d（d ≤ m），要穿出去得满足 m > 1.5 + d；
+     * Tacz 多数弹药每 tick 位移只有 1~2 格 → 多数情况下穿不过去，子弹贴着墙面反复触发
+     * onHitBlock（这也是历史上"一次游戏刷了 2 万+ 行碰撞日志"的来源之一）。
+     *
+     * 现在改成用子弹自己的运动方向推进（拿不到运动才退回 −法线）。
+     * 副作用：紧贴墙后的实体可能被跳过一个 tick —— 对作弊 mod 是可接受/甚至是想要的行为。
      *
      * 方法签名：onHitBlock(BlockHitResult, Vec3, Vec3)
      *   - 参数1：BlockHitResult — 方块碰撞结果
@@ -359,29 +369,33 @@ public class TimelessBulletEntityMixin {
             remap = false
     )
     private void onHitBlock(BlockHitResult hitResult, Vec3 vec3_1, Vec3 vec3_2, CallbackInfo ci) {
-        // 检查是否启用了穿墙子弹（服务端配置）
-        if (HackConfig.globalEnabled && HackConfig.aimSinglePlayerBulletPenetration) {
-            Projectile self = (Projectile) (Object) this;
-            // 与门（作者要求）：服务端配置开着 **且** 该玩家客户端也开着穿墙子弹
-            if (!(self.getOwner() instanceof LivingEntity shooter)
-                    || !ClientFeatureFlags.wantsPenetration(shooter)) {
-                return;
-            }
-            // 根据碰撞法线方向把子弹位置往前推 1.5 格
-            Vec3 normal = Vec3.atLowerCornerOf(hitResult.getDirection().getNormal());
-            Vec3 newPos = self.position().add(normal.scale(1.5));
-            self.setPos(newPos);
-            // 恢复 deltaMovement 沿原方向继续飞行（保持速度不变）
-            Vec3 currentMotion = self.getDeltaMovement();
-            double speed = currentMotion.length();
-            if (speed < 0.01) {
-                // 速度太小，沿碰撞法线方向给一个默认速度
-                self.setDeltaMovement(normal.scale(1.0));
-            }
-            // 注意：此处原先每 tick 每个方块碰撞都打一条日志，
-            // 实测一次游戏就刷了 2 万+ 行日志，已移除。需要排查时再临时加回。
-            // 跳过方块碰撞，让子弹继续飞行
-            ci.cancel();
+        // 检查是否启用了穿墙子弹（服务端配置 + 功能1 总开关）
+        if (!HackConfig.globalEnabled || !HackConfig.aimEnabled || !HackConfig.aimSinglePlayerBulletPenetration) {
+            return;
         }
+        Projectile self = (Projectile) (Object) this;
+        // 与门（作者要求）：服务端配置开着 **且** 该玩家客户端也开着穿墙子弹
+        if (!(self.getOwner() instanceof LivingEntity shooter)
+                || !ClientFeatureFlags.wantsPenetration(shooter)) {
+            return;
+        }
+        // 沿子弹运动方向推进 1.5 格；运动太小时退回"远离墙面"的方向（= −法线）
+        Vec3 motion = self.getDeltaMovement();
+        Vec3 dir;
+        double speed = motion.length();
+        if (speed > 1.0E-4) {
+            dir = motion.scale(1.0 / speed);
+        } else {
+            dir = Vec3.atLowerCornerOf(hitResult.getDirection().getNormal()).reverse();
+        }
+        self.setPos(self.position().add(dir.scale(1.5)));
+        // 恢复 deltaMovement 沿原方向继续飞行（速度太小时给一个默认速度）
+        if (speed < 0.01) {
+            self.setDeltaMovement(dir.scale(1.0));
+        }
+        // 注意：此处原先每 tick 每个方块碰撞都打一条日志，
+        // 实测一次游戏就刷了 2 万+ 行日志，已移除。需要排查时再临时加回。
+        // 跳过方块碰撞，让子弹继续飞行
+        ci.cancel();
     }
 }

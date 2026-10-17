@@ -110,16 +110,18 @@ public class ServerDetector {
         return isServerAimAvailable();
     }
 
-    /** 「追踪弹」是否真正生效：客户端开关 **且** 服务端也开着 */
+    /** 「追踪弹」是否真正生效：客户端开关 **且** 服务端也开着（都要功能1 总开关开着） */
     public static boolean isHomingEffective() {
         return HackConfig.globalEnabled
+                && HackConfig.aimEnabled
                 && HackConfig.aimSinglePlayerHomingBullet
                 && isServerHomingEnabled();
     }
 
-    /** 「穿墙子弹」是否真正生效：客户端开关 **且** 服务端也开着 */
+    /** 「穿墙子弹」是否真正生效：客户端开关 **且** 服务端也开着（都要功能1 总开关开着） */
     public static boolean isPenetrationEffective() {
         return HackConfig.globalEnabled
+                && HackConfig.aimEnabled
                 && HackConfig.aimSinglePlayerBulletPenetration
                 && isServerPenetrationEnabled();
     }

@@ -4,6 +4,7 @@ import com.mojang.datafixers.util.Either;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
 import net.minecraft.client.OptionInstance;
+import net.minecraft.client.Options;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 
@@ -98,7 +99,53 @@ public final class GammaAccess {
     /** {@link #installWideRange} 是否成功放宽过（成功才敢用 {@code set()} 写 >1 的值） */
     private static volatile boolean wideRangeInstalled = false;
 
+    // ============================================================
+    // 字段名：生产环境是 SRG 名，dev（官方映射）是官方名。
+    //
+    // ⚠️ 2026-10-12 修（生产环境全亮完全失效 + 每 tick 刷 ERROR 的根因）：
+    // Forge 生产运行时 Minecraft 的字段名是 **SRG 名**（重混淆产物里
+    // FlightHandler 引用的是 {@code Minecraft.f_91074_}，实锤），而
+    // {@code Class.getDeclaredField("gamma")} 里的字符串不会被 reobf 重写
+    // → 运行时必然抛 NoSuchFieldException。以前 OptionsGammaMixin 里那个空 catch
+    // 把它吞了，于是 installWideRange 从没跑过、forceSet 也一直炸。
+    //
+    // 映射表（官方名 → SRG 名，来自 srg_to_official_1.20.1.tsrg）：
+    //   Options.gamma          → f_92071_
+    //   OptionInstance.values  → f_231476_
+    //   OptionInstance.codec   → f_231477_
+    //   OptionInstance.toString→ f_231475_（字段，不是方法！）
+    //   OptionInstance.caption → f_231480_
+    //   OptionInstance.value   → f_231481_
+    // ============================================================
+    private static final String SRG_GAMMA = "f_92071_";
+    private static final String SRG_VALUES = "f_231476_";
+    private static final String SRG_CODEC = "f_231477_";
+    private static final String SRG_TO_STRING = "f_231475_";
+    private static final String SRG_CAPTION = "f_231480_";
+    private static final String SRG_VALUE = "f_231481_";
+
     private GammaAccess() {
+    }
+
+    /**
+     * 取 {@code Options.gamma} 这个 OptionInstance（SRG/官方名都试）
+     *
+     * 供 {@code OptionsGammaMixin} 复用，避免每个类各写一份裸 {@code getDeclaredField}。
+     * 拿不到时返回 {@code null}（调用方自己决定兜底）。
+     */
+    public static OptionInstance<Double> gammaOption(Options options) {
+        if (options == null) {
+            return null;
+        }
+        try {
+            Field field = findField(Options.class, "gamma", SRG_GAMMA);
+            @SuppressWarnings("unchecked")
+            OptionInstance<Double> gamma = (OptionInstance<Double>) field.get(options);
+            return gamma;
+        } catch (Throwable t) {
+            LOGGER.warn("[TaczHacker][全亮] 获取 gamma 选项失败", t);
+            return null;
+        }
     }
 
     /**
@@ -112,24 +159,36 @@ public final class GammaAccess {
     }
 
     /**
-     * 放宽 gamma 的取值范围（在 {@code Options} 构造完成后调用一次）
+     * 放宽 gamma 的取值范围（{@code Options} 构造里 gamma 赋值之后、{@code load()} 之前调用一次）
+     *
+     * 幂等：已经成功放宽过就直接返回（{@code OptionsGammaMixin} 会在 {@code load()} HEAD
+     * 和 {@code <init>} RETURN 各调一次，后者只是兜底）。
      */
     public static void installWideRange(OptionInstance<Double> gamma) {
+        if (gamma == null || wideRangeInstalled) {
+            return;
+        }
         try {
             Class<?> valueSetClass = Class.forName(SLIDERABLE_VALUE_SET_CLASS);
             Object wideValueSet = Proxy.newProxyInstance(
                     valueSetClass.getClassLoader(),
                     new Class<?>[]{valueSetClass},
                     new GammaValueSetHandler());
-            setField(gamma, "values", wideValueSet);
-            setField(gamma, "codec", WIDE_CODEC);
-            installClampedLabel(gamma);
-            wideRangeInstalled = true;
-            LOGGER.debug("[TaczHacker][全亮] gamma 取值范围已放宽到 0.0~{}", MAX_GAMMA);
+            setField(gamma, OptionInstance.class, "values", SRG_VALUES, wideValueSet);
+            setField(gamma, OptionInstance.class, "codec", SRG_CODEC, WIDE_CODEC);
         } catch (Throwable t) {
             // 放宽失败也只是 set() 会被拒 → applyFullbright 里还有 forceSet 兜底
             LOGGER.warn("[TaczHacker][全亮] 放宽 gamma 范围失败，将退化为直接写字段（功能不受影响）", t);
+            return;
         }
+        // 显示标签是锦上添花，失败不能连累 range 放宽
+        try {
+            installClampedLabel(gamma);
+        } catch (Throwable t) {
+            LOGGER.warn("[TaczHacker][全亮] 替换 gamma 显示标签失败（不影响全亮功能）", t);
+        }
+        wideRangeInstalled = true;
+        LOGGER.info("[TaczHacker][全亮] gamma 取值范围已放宽到 0.0~{}", MAX_GAMMA);
     }
 
     /**
@@ -139,7 +198,7 @@ public final class GammaAccess {
      */
     public static boolean forceSet(OptionInstance<Double> gamma, double value) {
         try {
-            setField(gamma, "value", value);
+            setField(gamma, OptionInstance.class, "value", SRG_VALUE, value);
             return true;
         } catch (Throwable t) {
             LOGGER.error("[TaczHacker][全亮] 直接写入 gamma 失败", t);
@@ -153,8 +212,7 @@ public final class GammaAccess {
      * 原版：{@code int i = (int)(value * 100.0)} → gamma=100 时显示「亮度: 10000」，看起来像坏了。
      */
     private static void installClampedLabel(OptionInstance<Double> gamma) throws ReflectiveOperationException {
-        Field captionField = OptionInstance.class.getDeclaredField("caption");
-        captionField.setAccessible(true);
+        Field captionField = findField(OptionInstance.class, "caption", SRG_CAPTION);
         Component caption = (Component) captionField.get(gamma);
 
         Function<Double, Component> label = value -> {
@@ -169,14 +227,31 @@ public final class GammaAccess {
             }
             return Component.translatable("options.generic_value", caption, amount);
         };
-        setField(gamma, "toString", label);
+        setField(gamma, OptionInstance.class, "toString", SRG_TO_STRING, label);
+    }
+
+    /**
+     * 按名字找字段：**先试 SRG 名（生产环境），再回退官方名（dev 环境）**
+     *
+     * 两个名字都找不到才抛 {@link NoSuchFieldException}。
+     */
+    private static Field findField(Class<?> owner, String official, String srg) throws NoSuchFieldException {
+        try {
+            Field field = owner.getDeclaredField(srg);
+            field.setAccessible(true);
+            return field;
+        } catch (NoSuchFieldException ignored) {
+            // dev（官方映射）环境没有 SRG 名，走下面的官方名
+        }
+        Field field = owner.getDeclaredField(official);
+        field.setAccessible(true);
+        return field;
     }
 
     /** 反射写字段（含 private final 的实例字段，setAccessible 后可写） */
-    private static void setField(Object target, String name, Object value) throws ReflectiveOperationException {
-        Field field = OptionInstance.class.getDeclaredField(name);
-        field.setAccessible(true);
-        field.set(target, value);
+    private static void setField(Object target, Class<?> owner, String official, String srg, Object value)
+            throws ReflectiveOperationException {
+        findField(owner, official, srg).set(target, value);
     }
 
     /**

@@ -14,7 +14,10 @@ properties = { }
 # 协议兼容性由 SimpleChannel 的协议版本（Taczhacker.PROTOCOL_VERSION）单独保证。
 displayTest = "IGNORE_ALL_VERSION"
 accessTransformers = "accesstransformer.cfg"
-mixinConfigs = "taczhacker.mixins.json,taczhacker.embeddium.mixins.json,taczhacker.parcool.mixins.json"
+# 每个 mixin 配置都要在这里声明（jar 清单的 MixinConfigs 只在正式发行时生效，
+# dev 环境 runClient 没有清单，漏写的配置在 dev 里会静默不加载）。
+# tacz 那份 required=false，没装 Tacz 时整份跳过。
+mixinConfigs = "taczhacker.mixins.json,taczhacker.tacz.mixins.json,taczhacker.embeddium.mixins.json,taczhacker.parcool.mixins.json"
 
 [[dependencies.${mod_id}]]
 modId = "forge"
