@@ -123,13 +123,22 @@ public class FullbrightHandler {
      * 两条路最后都会再校验一次实际值，兜底写一次，保证不会退化成「静默失效」。
      */
     private static void applyGamma(Minecraft mc, double target) {
+        net.minecraft.client.OptionInstance<Double> gamma = mc.options.gamma();
         if (GammaAccess.isWideRangeInstalled()) {
-            mc.options.gamma().set(target);
-            if (Math.abs(mc.options.gamma().get() - target) <= 0.05) {
+            // ⚠️ set() 会回调 ValueSet#validateValue，而那个 ValueSet 是我们用动态代理顶替的
+            // （GammaAccess.GammaValueSetHandler）。代理一旦返回 null，原版 OptionInstance#set
+            // 里 `validateValue(v).orElseGet(...)` 直接 NPE → 崩游戏（2026-10-17 实测按 B 闪退）。
+            // 所以这里必须兜住：代理以后若再因映射/版本变化失效，最多退化成直接写字段，不许闪退。
+            try {
+                gamma.set(target);
+            } catch (Throwable t) {
+                LOGGER.warn("[TaczHacker][全亮] gamma.set() 抛异常，改为直接写字段兜底", t);
+            }
+            if (Math.abs(gamma.get() - target) <= 0.05) {
                 return;
             }
         }
-        if (GammaAccess.forceSet(mc.options.gamma(), target)) {
+        if (GammaAccess.forceSet(gamma, target)) {
             LOGGER.debug("[TaczHacker][全亮] 已直接写入 gamma 字段：{}（放宽范围{}）",
                     target, GammaAccess.isWideRangeInstalled() ? "成功但值没生效" : "失败");
         }

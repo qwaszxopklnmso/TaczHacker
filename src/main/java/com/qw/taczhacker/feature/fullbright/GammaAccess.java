@@ -257,45 +257,71 @@ public final class GammaAccess {
     /**
      * 动态代理实现的 ValueSet：validate 接受 0~{@link #MAX_GAMMA}，
      * 但滑块位置仍然按 0~1 映射（原版「亮度」界面照旧能用）
+     *
+     * ⚠️ **绝不能按方法名分派**（2026-10-17 崩服教训）：
+     * 运行时接口方法名是 SRG 名，不是官方名 ——
+     * {@code validateValue} 在生产里叫 {@code m_214064_}、{@code toSliderValue} 叫 {@code m_213640_}、
+     * {@code fromSliderValue} 叫 {@code m_213729_}、{@code codec} 叫 {@code m_213664_}、
+     * {@code createButton} 叫 {@code m_213823_}。
+     * 旧实现 `switch (method.getName())` 全都落进 default → 返回 null →
+     * 原版 {@code OptionInstance#set} 里
+     * {@code this.values.validateValue(v).orElseGet(...)} 直接 NPE 崩游戏（实测按 B 闪退）。
+     * 现在改成**按「返回类型 + 参数个数 + 参数类型」分派**，与命名空间无关，dev/生产同一套：
+     * <ul>
+     *   <li>{@code (Object)Optional} → validateValue</li>
+     *   <li>{@code (Object)double}   → toSliderValue</li>
+     *   <li>{@code (double)Object}   → fromSliderValue</li>
+     *   <li>{@code ()Codec}          → codec</li>
+     *   <li>其余走接口默认实现（createButton 等），最后才认 Object 的 toString/hashCode/equals</li>
+     * </ul>
      */
     private static class GammaValueSetHandler implements InvocationHandler {
 
         @Override
         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+            Class<?> returnType = method.getReturnType();
+            Class<?>[] parameterTypes = method.getParameterTypes();
+            int paramCount = parameterTypes.length;
+            Object arg0 = (args != null && args.length > 0) ? args[0] : null;
+
+            // validateValue(T) -> Optional
+            if (Optional.class.equals(returnType) && paramCount == 1) {
+                Double value = arg0 instanceof Double d ? d : null;
+                return value != null && value >= 0.0 && value <= MAX_GAMMA
+                        ? Optional.of(value)
+                        : Optional.empty();
+            }
+            // toSliderValue(T) -> double（0~MAX_GAMMA 映射到滑块 0~1，夹住以免滑块拿到超范围初值）
+            if (returnType == double.class && paramCount == 1) {
+                Double value = arg0 instanceof Double d ? d : null;
+                return value == null ? 0.0 : Math.max(0.0, Math.min(1.0, value));
+            }
+            // fromSliderValue(double) -> T（滑块 0~1 原样写入，与原版一致）
+            if (Object.class.equals(returnType) && paramCount == 1
+                    && parameterTypes[0] == double.class) {
+                return arg0;
+            }
+            // codec() -> Codec
+            if (Codec.class.isAssignableFrom(returnType) && paramCount == 0) {
+                return WIDE_CODEC;
+            }
+            // 接口默认实现（createButton 等）：它会再回调本代理的 toSliderValue/fromSliderValue
+            if (method.isDefault()) {
+                return InvocationHandler.invokeDefault(proxy, method, args);
+            }
+            // 代理自己的 Object 方法（只在打日志/调试时可能被调到），给个不炸的返回
             switch (method.getName()) {
-                case "validateValue": {
-                    Double value = (Double) args[0];
-                    return value != null && value >= 0.0 && value <= MAX_GAMMA
-                            ? Optional.of(value)
-                            : Optional.empty();
-                }
-                // 0~MAX_GAMMA → 滑块 0~1（夹住，否则滑块控件会拿到超范围的初值）
-                case "toSliderValue": {
-                    Double value = (Double) args[0];
-                    return value == null ? 0.0 : Math.max(0.0, Math.min(1.0, value));
-                }
-                // 滑块 0~1 → 值原样（拖动滑条只会得到 0~1，与原版一致）
-                case "fromSliderValue":
-                    return args[0];
-
-                case "codec":
-                    return WIDE_CODEC;
-
+                case "toString":
+                    return "TaczHackerGammaValueSet[0.." + MAX_GAMMA + "]";
+                case "hashCode":
+                    return System.identityHashCode(proxy);
+                case "equals":
+                    return proxy == arg0;
                 default:
-                    if (method.isDefault()) {
-                        return InvocationHandler.invokeDefault(proxy, method, args);
-                    }
-                    // 代理对象自己的 Object 方法（打日志/调试时才可能被调到），给个不炸的返回
-                    switch (method.getName()) {
-                        case "toString":
-                            return "TaczHackerGammaValueSet[0.." + MAX_GAMMA + "]";
-                        case "hashCode":
-                            return System.identityHashCode(proxy);
-                        case "equals":
-                            return proxy == args[0];
-                        default:
-                            return null;
-                    }
+                    // 走到这里说明 ValueSet 以后新增了方法 —— 打日志并返回 null，
+                    // 别再像旧实现那样静默（就是它让 NPE 变得莫名其妙）
+                    LOGGER.warn("[TaczHacker][全亮] 未处理的 ValueSet 方法：{}（返回 null）", method);
+                    return null;
             }
         }
     }

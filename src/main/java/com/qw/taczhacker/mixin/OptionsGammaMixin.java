@@ -48,7 +48,7 @@ public abstract class OptionsGammaMixin {
      */
     @Inject(method = "m_92140_", at = @At("HEAD"), require = 0, remap = false)
     private void taczhacker_widenGammaBeforeLoad(CallbackInfo ci) {
-        install(this);
+        install(this, "load() HEAD（读 options.txt 之前）");
     }
 
     /**
@@ -56,20 +56,25 @@ public abstract class OptionsGammaMixin {
      */
     @Inject(method = "<init>", at = @At("RETURN"))
     private void taczhacker_widenGammaRange(CallbackInfo ci) {
-        install(this);
+        install(this, "<init> RETURN（兜底）");
     }
 
-    private static void install(Object options) {
+    private static void install(Object options, String from) {
         try {
             OptionInstance<Double> gamma = GammaAccess.gammaOption((Options) options);
             if (gamma == null) {
-                LOGGER.warn("[TaczHacker][全亮] 拿不到 gamma 选项，跳过取值范围放宽");
+                LOGGER.warn("[TaczHacker][全亮] 拿不到 gamma 选项，跳过取值范围放宽（来源：{}）", from);
                 return;
             }
+            boolean alreadyInstalled = GammaAccess.isWideRangeInstalled();
             GammaAccess.installWideRange(gamma);
+            if (!alreadyInstalled && GammaAccess.isWideRangeInstalled()) {
+                // 这条日志能直接说明「读 options.txt 之前就放宽了」有没有生效（Bug：重启丢亮度）
+                LOGGER.info("[TaczHacker][全亮] 取值范围放宽成功（来源：{}）", from);
+            }
         } catch (Throwable t) {
             // 失败也不致命：FullbrightHandler 里还有直接写字段的兜底
-            LOGGER.warn("[TaczHacker][全亮] 放宽 gamma 范围时出错（不影响游戏）", t);
+            LOGGER.warn("[TaczHacker][全亮] 放宽 gamma 范围时出错（来源：{}）", from, t);
         }
     }
 }
