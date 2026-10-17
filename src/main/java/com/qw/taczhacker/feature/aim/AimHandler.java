@@ -291,11 +291,9 @@ public class AimHandler {
     }
 
     /**
-     * 以任意位置为中心搜索目标（子弹追踪用）
+     * 以任意位置为中心搜索目标（子弹开火探测用）
      *
      * 搜索框以 center 为中心，inflate(radius) 确保 Y 范围跨度 = 2×radius。
-     * 由于 onBulletTick 每 tick 调用，子弹在第一 tick 就在玩家位置，
-     * 此时 bulletPos ≈ shooterPos，搜索框自然覆盖目标。
      *
      * @param level  世界
      * @param center 搜索中心（通常为子弹位置）
@@ -303,11 +301,28 @@ public class AimHandler {
      * @return 最近的可攻击目标，或 null
      */
     public static LivingEntity selectTargetNear(Vec3 center, Level level, LivingEntity shooter) {
+        return selectTargetNear(center, level, shooter, null, 180.0D);
+    }
+
+    /**
+     * 带方向约束的就近搜索
+     *
+     * 2026-10-17 新增（作者报「子弹乱飘不打人」的根因修复）：
+     * 旧版 {@link #selectTargetNear(Vec3, Level, LivingEntity)} 完全不看方向、半径用
+     * {@code aim.lockRadius}（作者配置是 128 格），于是开了追踪弹之后子弹每 tick 都去追
+     * 「离它最近的任何活物」（牛、背后的僵尸、隔墙的怪），越飞越偏 —— 表现就是乱飘不打人。
+     * 现在支持按「从 center 指向目标」与 {@code direction} 的夹角过滤。
+     *
+     * @param direction   参考方向（通常传子弹飞行方向）；null / 零向量 = 不做方向过滤
+     * @param maxAngleDeg 只接受夹角 ≤ 该值的目标；≥180 视为不过滤
+     */
+    public static LivingEntity selectTargetNear(Vec3 center, Level level, LivingEntity shooter,
+                                                Vec3 direction, double maxAngleDeg) {
         if (!isActive()) return null;
 
         double radius = HackConfig.aimLockRadius;
         AABB searchBox = new AABB(center, center).inflate(radius);
-        return selectTargetInBox(level, searchBox, center, shooter, radius);
+        return selectTargetInBox(level, searchBox, center, shooter, radius, direction, maxAngleDeg);
     }
 
     /**
@@ -316,14 +331,16 @@ public class AimHandler {
      * 距离计算以 center 为参考点，而不是 shooter。
      * 这样当 center 是子弹位置时，能正确找到子弹附近的目标。
      *
-     * @param level  世界
-     * @param searchBox 搜索范围
      * @param center 距离计算参考点（shooter 位置 或 子弹位置）
-     * @param shooter 发射者（排除自身用）
-     * @param radius 搜索半径
-     * @return 最近的可攻击目标，或 null
+     * @param direction 方向过滤用的参考方向，可为 null
+     * @param maxAngleDeg 方向过滤的最大夹角（度），≥180 不过滤
      */
-    private static LivingEntity selectTargetInBox(Level level, AABB searchBox, Vec3 center, LivingEntity shooter, double radius) {
+    private static LivingEntity selectTargetInBox(Level level, AABB searchBox, Vec3 center, LivingEntity shooter,
+                                                  double radius, Vec3 direction, double maxAngleDeg) {
+        boolean useCone = direction != null && direction.lengthSqr() > 1.0E-8 && maxAngleDeg < 180.0D;
+        double minDot = useCone ? Math.cos(Math.toRadians(Math.max(0.0D, maxAngleDeg))) : -1.0D;
+        Vec3 dirNorm = useCone ? direction.normalize() : null;
+
         List<LivingEntity> candidates = new ArrayList<>();
 
         for (var entity : level.getEntitiesOfClass(LivingEntity.class, searchBox)) {
@@ -333,7 +350,15 @@ public class AimHandler {
             double dist = center.distanceTo(entity.position());
             if (dist > radius) continue;
 
-            // 无视锥角（不检查玩家视角）
+            // 方向过滤：只接受"在 center 指向它的方向上、落在锥角内"的目标
+            if (useCone) {
+                Vec3 toTarget = entity.getBoundingBox().getCenter().subtract(center);
+                if (toTarget.lengthSqr() > 1.0E-8
+                        && dirNorm.dot(toTarget.normalize()) < minDot) {
+                    continue;
+                }
+            }
+
             // 无视视线遮挡（穿墙模式）
             candidates.add(entity);
         }

@@ -11,6 +11,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -136,6 +137,8 @@ public class TimelessBulletEntityMixin {
 
             // 从 yaw/pitch 计算方向向量（无客户端依赖）
             overrideDirectionFromAngles(self, speed, angles);
+            // 方向定下来之后，立刻为这颗子弹探测一次目标（之后全程不再重新找）
+            taczhacker$probeTarget(self);
             return;
         }
 
@@ -160,6 +163,78 @@ public class TimelessBulletEntityMixin {
             if (look.lengthSqr() > 1.0E-6) {
                 self.setDeltaMovement(look.normalize().scale(speed));
             }
+        }
+
+        // 方向定下来之后，立刻为这颗子弹探测一次目标（之后全程不再重新找）
+        taczhacker$probeTarget(self);
+    }
+
+    // ============================================================
+    // 目标探测：一颗子弹只探一次（作者要求，2026-10-17）
+    // ============================================================
+
+    /** 这颗子弹是否已经探测过目标（探过就不再探，哪怕当时没找到） */
+    @Unique
+    private boolean taczhacker$targetProbed = false;
+
+    /** 探测到的目标实体 id；-1 = 探测过但没目标（这颗子弹之后一直直飞） */
+    @Unique
+    private int taczhacker$targetId = -1;
+
+    /**
+     * 在开火那一刻（子弹刚生成、方向已定）为这颗子弹挑**一次**目标
+     *
+     * ⚠️ 2026-10-17 作者要求：**只在第一次寻找生物，不持续寻找**。
+     * 旧实现在 {@code onBulletTick} 里每 tick 重新 {@code selectTargetNear}，而那个方法
+     * 既不看向、半径又是 {@code aim.lockRadius}（作者配置 128 格），于是开追踪弹后
+     * 子弹每 tick 都在追「离它最近的任何活物」（牛、背后的僵尸、隔墙的怪）→ 乱飘不打人，
+     * 而且把开火时算好的零散布方向整个顶掉，看起来像「真·自瞄也坏了」。
+     *
+     * 现在的探测顺序（作者指定）：
+     * <ol>
+     *   <li>按住功能3（视角锁定）时锁定的那个目标 —— 它就是"准心靠着的"</li>
+     *   <li>准心/弹道方向上、锥角（{@code aim.coneAngle}）范围内最近的目标</li>
+     *   <li>范围内最近的目标（不看方向，兜底）</li>
+     * </ol>
+     * 探到就记 id，探不到记 -1，**两种情况都置 probed**，之后这颗子弹再也不找目标。
+     *
+     * 排查时可在末尾临时打开日志（每颗子弹一行，别长期开着 —— 历史上刷过 2 万行）。
+     */
+    @Unique
+    private void taczhacker$probeTarget(Projectile bullet) {
+        if (taczhacker$targetProbed) {
+            return;
+        }
+        taczhacker$targetProbed = true;
+        taczhacker$targetId = -1;
+
+        if (!HackConfig.globalEnabled || !HackConfig.aimEnabled) {
+            return;
+        }
+        if (!(bullet.getOwner() instanceof LivingEntity shooter)) {
+            return;
+        }
+
+        // 1) 功能3 按住锁定中的目标
+        LivingEntity target = getAimbotTarget();
+        if (target != null && !target.isAlive()) {
+            target = null;
+        }
+
+        // 2) 准心/弹道锥角内最近的
+        if (target == null) {
+            Vec3 dir = bullet.getDeltaMovement();
+            target = AimHandler.selectTargetNear(bullet.position(), bullet.level(), shooter,
+                    dir, HackConfig.aimConeAngle);
+        }
+
+        // 3) 范围内最近的（不看方向）
+        if (target == null) {
+            target = AimHandler.selectTargetNear(bullet.position(), bullet.level(), shooter);
+        }
+
+        if (target != null) {
+            taczhacker$targetId = target.getId();
         }
     }
 
@@ -244,17 +319,20 @@ public class TimelessBulletEntityMixin {
             return;
         }
 
-        // ----- 选择目标 -----
-        // 优先使用 Aimbot（功能3）的锁定目标（反射句柄已缓存，不再每 tick 解析）
-        LivingEntity target = getAimbotTarget();
-
-        if (target == null) {
-            // 使用子弹位置为中心的搜索框（而不是以 shooter 为中心）
-            // 这样子弹飞远后不会因为 shooter 距离太远而丢失目标
-            target = AimHandler.selectTargetNear(bulletPos, self.level(), shooter);
+        // ----- 目标：只用「开火那一刻探测好的」那个，绝不每 tick 重新找 -----
+        // 2026-10-17 作者要求：只在第一次寻找生物，不持续寻找。
+        // 旧实现在这里每 tick 调一次 selectTargetNear（不看方向 + 半径 128 格），
+        // 于是子弹会不断换目标追最近的活物 → 乱飘不打人。
+        if (!taczhacker$targetProbed) {
+            // 兜底：极少数子弹没走 shoot()（例如直接生成后手动设速度），第一 tick 补探一次
+            taczhacker$probeTarget(self);
         }
-
-        if (target == null || !target.isAlive()) {
+        if (taczhacker$targetId == -1) {
+            // 探测过、没目标 → 这颗子弹之后一直按开火方向直飞
+            return;
+        }
+        net.minecraft.world.entity.Entity boundEntity = self.level().getEntity(taczhacker$targetId);
+        if (!(boundEntity instanceof LivingEntity target) || !target.isAlive()) {
             return;
         }
 
