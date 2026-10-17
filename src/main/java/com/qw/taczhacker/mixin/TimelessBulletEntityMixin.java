@@ -4,16 +4,21 @@ import com.qw.taczhacker.config.HackConfig;
 import com.qw.taczhacker.feature.aim.AimHandler;
 import com.qw.taczhacker.feature.aim.AimHandler.AimAngles;
 import com.qw.taczhacker.network.ClientFeatureFlags;
+import com.tacz.guns.util.block.BlockRayTrace;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.lang.reflect.Method;
@@ -440,6 +445,70 @@ public class TimelessBulletEntityMixin {
      * 注意：即使跳过方块碰撞，子弹仍会因为 tick 中的速度衰减和距离限制
      * 而最终消失，不会无限飞行。
      */
+    /**
+     * 穿墙子弹的**正主**：把 Tacz 那一 tick 的方块射线结果换成 MISS
+     *
+     * ⚠️ 2026-10-17 修「穿墙有效果但打不出伤害」：
+     * Tacz 的 {@code onBulletTick} 里是这么写的（反编译确认）：
+     * <pre>
+     *   Vec3 startVec = this.position();
+     *   Vec3 endVec = startVec.add(this.getDeltaMovement());
+     *   BlockHitResult resultB = BlockRayTrace.rayTraceBlocks(level, clip);
+     *   if (resultB.getType() != MISS) endVec = resultB.getLocation();   // ← 命中方块就把终点截断在墙面
+     *   ... EntityUtil.findEntityOnPath(this, startVec, endVec)          // ← 实体判定只用被截断后的线段
+     *   this.onHitBlock(resultB, startVec, endVec);
+     * </pre>
+     * 原来我们只在 {@code onHitBlock} 里「取消删子弹 + 把子弹位置往前推」，
+     * 于是**穿过墙体那一段永远不在实体判定范围内** —— 子弹确实穿过去了，
+     * 但墙后的目标从来没被检测到 → 「没伤害」。而且当时那 1.5 格瞬移还会把
+     * 紧贴墙后的目标整段跳过去。
+     *
+     * 现在改成在源头处理：命中方块时直接返回一个 MISS，
+     * 这样 {@code endVec} 不会被截断，{@code startVec→endVec} 完整覆盖穿过墙体的那一段，
+     * 墙后的实体照样会被 {@code findEntityOnPath} 判定命中 —— 既不瞬移也不漏判定。
+     *
+     * {@code require = 0}：万一以后 Tacz 改了这里的调用点，退回下面
+     * {@link #onHitBlock} 的旧兜底（取消删除 + 小幅前推），不会崩游戏。
+     */
+    @Redirect(
+            method = "onBulletTick",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/tacz/guns/util/block/BlockRayTrace;rayTraceBlocks(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/level/ClipContext;)Lnet/minecraft/world/phys/BlockHitResult;"
+            ),
+            require = 0,
+            remap = false
+    )
+    private BlockHitResult taczhacker$skipBlockRayTrace(Level level, ClipContext context) {
+        BlockHitResult real = BlockRayTrace.rayTraceBlocks(level, context);
+        if (real.getType() == HitResult.Type.MISS) {
+            return real;
+        }
+        if (!taczhacker$penetrationActive()) {
+            return real;
+        }
+        // 交还完整线段给实体判定：Tacz 见到 MISS 就不会截断 endVec
+        return BlockHitResult.miss(real.getLocation(), real.getDirection(), real.getBlockPos());
+    }
+
+    /** 穿墙子弹此刻是否应当生效（服务端配置 + 功能1 总开关 + 该玩家客户端的与门） */
+    @Unique
+    private boolean taczhacker$penetrationActive() {
+        if (!HackConfig.globalEnabled || !HackConfig.aimEnabled
+                || !HackConfig.aimSinglePlayerBulletPenetration) {
+            return false;
+        }
+        Projectile self = (Projectile) (Object) this;
+        return self.getOwner() instanceof LivingEntity shooter
+                && ClientFeatureFlags.wantsPenetration(shooter);
+    }
+
+    /**
+     * 兜底（仅在 {@link #taczhacker$skipBlockRayTrace} 的 Redirect 没匹配上时才会执行）
+     *
+     * 正常情况下射线已经被换成 MISS，Tacz 自己的 onHitBlock 会在第一行 return，
+     * 而本注入也会因为 {@code Type.MISS} 直接退出 —— 两条路都不会瞬移子弹。
+     */
     @Inject(
             method = "onHitBlock",
             at = @At("HEAD"),
@@ -447,17 +516,14 @@ public class TimelessBulletEntityMixin {
             remap = false
     )
     private void onHitBlock(BlockHitResult hitResult, Vec3 vec3_1, Vec3 vec3_2, CallbackInfo ci) {
-        // 检查是否启用了穿墙子弹（服务端配置 + 功能1 总开关）
-        if (!HackConfig.globalEnabled || !HackConfig.aimEnabled || !HackConfig.aimSinglePlayerBulletPenetration) {
+        if (hitResult.getType() == HitResult.Type.MISS) {
+            return;
+        }
+        if (!taczhacker$penetrationActive()) {
             return;
         }
         Projectile self = (Projectile) (Object) this;
-        // 与门（作者要求）：服务端配置开着 **且** 该玩家客户端也开着穿墙子弹
-        if (!(self.getOwner() instanceof LivingEntity shooter)
-                || !ClientFeatureFlags.wantsPenetration(shooter)) {
-            return;
-        }
-        // 沿子弹运动方向推进 1.5 格；运动太小时退回"远离墙面"的方向（= −法线）
+        // 只往前推 0.1 格（旧版是 1.5 格，会把紧贴墙后的目标整段跳过 → 穿墙但打不到人）
         Vec3 motion = self.getDeltaMovement();
         Vec3 dir;
         double speed = motion.length();
@@ -465,15 +531,9 @@ public class TimelessBulletEntityMixin {
             dir = motion.scale(1.0 / speed);
         } else {
             dir = Vec3.atLowerCornerOf(hitResult.getDirection().getNormal()).reverse();
-        }
-        self.setPos(self.position().add(dir.scale(1.5)));
-        // 恢复 deltaMovement 沿原方向继续飞行（速度太小时给一个默认速度）
-        if (speed < 0.01) {
             self.setDeltaMovement(dir.scale(1.0));
         }
-        // 注意：此处原先每 tick 每个方块碰撞都打一条日志，
-        // 实测一次游戏就刷了 2 万+ 行日志，已移除。需要排查时再临时加回。
-        // 跳过方块碰撞，让子弹继续飞行
+        self.setPos(self.position().add(dir.scale(0.1)));
         ci.cancel();
     }
 }
