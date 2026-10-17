@@ -28,6 +28,8 @@ public final class ClientFeatureFlags {
 
     /** 客户端功能1（开火静默自瞄）当前是否生效 */
     private static final Map<UUID, Boolean> AIM = new ConcurrentHashMap<>();
+    /** 客户端「真·自瞄」（服务端零散布方向覆盖）开关 */
+    private static final Map<UUID, Boolean> TRUE_AIM = new ConcurrentHashMap<>();
     /** 客户端追踪弹开关 */
     private static final Map<UUID, Boolean> HOMING = new ConcurrentHashMap<>();
     /** 客户端穿墙子弹开关 */
@@ -37,8 +39,9 @@ public final class ClientFeatureFlags {
     }
 
     /** 收到客户端上报（同时覆盖上一次的值） */
-    public static void update(UUID playerId, boolean aim, boolean homing, boolean penetration) {
+    public static void update(UUID playerId, boolean aim, boolean trueAim, boolean homing, boolean penetration) {
         AIM.put(playerId, aim);
+        TRUE_AIM.put(playerId, trueAim);
         HOMING.put(playerId, homing);
         PENETRATION.put(playerId, penetration);
     }
@@ -46,6 +49,7 @@ public final class ClientFeatureFlags {
     /** 玩家退出：清掉它的记录，避免 UUID 状态残留 */
     public static void remove(UUID playerId) {
         AIM.remove(playerId);
+        TRUE_AIM.remove(playerId);
         HOMING.remove(playerId);
         PENETRATION.remove(playerId);
     }
@@ -53,6 +57,7 @@ public final class ClientFeatureFlags {
     /** 服务器关停：整表清空 */
     public static void clear() {
         AIM.clear();
+        TRUE_AIM.clear();
         HOMING.clear();
         PENETRATION.clear();
     }
@@ -67,6 +72,14 @@ public final class ClientFeatureFlags {
         if (reported != null) return reported;
         // 集成服务器：同进程，直接读这份配置（含 N 键的运行时开关）
         return integrated() && HackConfig.globalEnabled && HackConfig.aimEnabled && HackConfig.runtimeAimActive;
+    }
+
+    /** 该射手的客户端是否开着「真·自瞄」（服务端零散布方向覆盖，1.8.10 起独立开关） */
+    public static boolean wantsTrueAim(LivingEntity shooter) {
+        Boolean reported = reported(shooter, TRUE_AIM);
+        if (reported != null) return reported;
+        return integrated() && HackConfig.globalEnabled && HackConfig.aimEnabled
+                && HackConfig.runtimeAimActive && HackConfig.aimTrueAim;
     }
 
     /** 该射手的客户端是否开着追踪弹 */

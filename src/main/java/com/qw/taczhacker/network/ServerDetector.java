@@ -34,6 +34,9 @@ public class ServerDetector {
     /** 服务端是否启用了子弹方向自瞄 */
     private static volatile boolean serverAimEnabled = false;
 
+    /** 服务端是否启用了「真·自瞄」（零散布方向覆盖，1.8.10 起独立开关） */
+    private static volatile boolean serverTrueAimEnabled = false;
+
     /** 服务端是否启用了追踪弹 */
     private static volatile boolean serverHomingEnabled = false;
 
@@ -96,18 +99,26 @@ public class ServerDetector {
     // ============================================================
 
     /**
-     * 「真·自瞄」是否真正生效：客户端功能1 开着 **且** 服务端也开着子弹自瞄
+     * 「真·自瞄」是否真正生效
      *
-     * 单机/局域网（集成服务器）就是同一份配置，直接看客户端这份即可。
+     * = 功能1 在本地生效（总开关 + aim.enabled + N 键运行时开关）
+     *   **且** 本地开了独立的「真·自瞄」开关（aim.trueAim）
+     *   **且** 服务端也开了 aim.trueAim（单机/局域网同进程，直接看这份配置）
+     *
+     * 1.8.10 起「真·自瞄」有了自己的开关，不再只是功能1 的副产物 ——
+     * 关掉它就能保留功能1 的静默自瞄，但子弹按 Tacz 原版散布飞（方便对比）。
      */
     public static boolean isAimEffective() {
         if (!HackConfig.globalEnabled || !HackConfig.aimEnabled || !HackConfig.runtimeAimActive) {
             return false;
         }
+        if (!HackConfig.aimTrueAim) {
+            return false;
+        }
         if (isSinglePlayer) {
             return true;
         }
-        return isServerAimAvailable();
+        return isServerHasTaczHacker() && serverTrueAimEnabled;
     }
 
     /** 「追踪弹」是否真正生效：客户端开关 **且** 服务端也开着（都要功能1 总开关开着） */
@@ -143,21 +154,31 @@ public class ServerDetector {
     /**
      * 写入服务端能力位（握手应答 / 单机本地配置）
      */
-    public static void setServerCapabilities(boolean hasMod, boolean aim, boolean homing, boolean penetration) {
+    public static void setServerCapabilities(boolean hasMod, boolean aim, boolean trueAim,
+                                             boolean homing, boolean penetration) {
         serverHasTaczHacker = hasMod;
         serverAimEnabled = aim;
+        serverTrueAimEnabled = trueAim;
         serverHomingEnabled = homing;
         serverPenetrationEnabled = penetration;
         handshakeCompleted = true;
-        Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 服务端能力：mod={}, aim={}, homing={}, penetration={}",
-                hasMod, aim, homing, penetration);
+        Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 服务端能力：mod={}, aim={}, trueAim={}, homing={}, penetration={}",
+                hasMod, aim, trueAim, homing, penetration);
+    }
+
+    /** 服务端是否开着「真·自瞄」（零散布方向覆盖） */
+    public static boolean isServerTrueAimEnabled() {
+        if (isSinglePlayer) {
+            return HackConfig.aimTrueAim;
+        }
+        return isServerHasTaczHacker() && serverTrueAimEnabled;
     }
 
     /**
      * 兼容旧调用：仅设置"服务端有本 mod"
      */
     public static void setServerHasTaczHacker(boolean value) {
-        setServerCapabilities(value, false, false, false);
+        setServerCapabilities(value, false, false, false, false);
     }
 
     /**
@@ -168,6 +189,7 @@ public class ServerDetector {
         handshakeCompleted = false;
         isSinglePlayer = false;
         serverAimEnabled = false;
+        serverTrueAimEnabled = false;
         serverHomingEnabled = false;
         serverPenetrationEnabled = false;
     }

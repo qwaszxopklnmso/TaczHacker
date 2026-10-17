@@ -69,12 +69,15 @@ public class ServerCapabilityBroadcaster {
                     PacketDistributor.PLAYER.with(() -> player),
                     new S2CHandshakeAckPacket(
                             HackConfig.aimEnabled,
+                            HackConfig.aimTrueAim,
                             HackConfig.aimSinglePlayerHomingBullet,
                             HackConfig.aimSinglePlayerBulletPenetration));
         }
-        Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 服务端配置变化，已向 {} 名玩家推送能力位：aim={}, homing={}, penetration={}",
+        Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 服务端配置变化，已向 {} 名玩家推送能力位："
+                        + "aim={}, trueAim={}, homing={}, penetration={}",
                 players.size(),
                 HackConfig.aimEnabled,
+                HackConfig.aimTrueAim,
                 HackConfig.aimSinglePlayerHomingBullet,
                 HackConfig.aimSinglePlayerBulletPenetration);
     }

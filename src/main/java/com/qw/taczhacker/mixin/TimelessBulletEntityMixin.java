@@ -163,7 +163,9 @@ public class TimelessBulletEntityMixin {
         // 与门（作者要求）：服务端 aim.enabled 开着（本方法开头的判断）**且**
         // 该玩家客户端报过"我在用功能1"（ClientFeatureFlags，来自握手/开关变化时的上报）。
         // 这样原版客户端不会因为你服务器的配置而被改弹道。
-        if (self.getOwner() instanceof LivingEntity shooter && ClientFeatureFlags.wantsAim(shooter)) {
+        if (self.getOwner() instanceof LivingEntity shooter
+                && ClientFeatureFlags.wantsAim(shooter)
+                && ClientFeatureFlags.wantsTrueAim(shooter)) {
             Vec3 look = shooter.getLookAngle();
             if (look.lengthSqr() > 1.0E-6) {
                 self.setDeltaMovement(look.normalize().scale(speed));

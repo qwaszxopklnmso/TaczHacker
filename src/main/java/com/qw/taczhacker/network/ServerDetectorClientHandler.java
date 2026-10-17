@@ -43,6 +43,7 @@ public class ServerDetectorClientHandler {
             ServerDetector.setServerCapabilities(
                     true,
                     HackConfig.aimEnabled,
+                    HackConfig.aimTrueAim,
                     HackConfig.aimSinglePlayerHomingBullet,
                     HackConfig.aimSinglePlayerBulletPenetration);
             Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 单人游戏/局域网模式");
@@ -58,15 +59,16 @@ public class ServerDetectorClientHandler {
             if (connection != null && Taczhacker.CHANNEL.isRemotePresent(connection)) {
                 Taczhacker.CHANNEL.sendToServer(new C2SHandshakePacket(
                         AimHandler.isActive(),
+                        AimHandler.isActive() && HackConfig.aimTrueAim,
                         HackConfig.globalEnabled && HackConfig.aimSinglePlayerHomingBullet,
                         HackConfig.globalEnabled && HackConfig.aimSinglePlayerBulletPenetration));
                 Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 已发送握手包到远程服务器，等待回复...");
             } else {
-                ServerDetector.setServerCapabilities(false, false, false, false);
+                ServerDetector.setServerCapabilities(false, false, false, false, false);
                 Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 服务端未安装本 mod（通道不存在），使用纯客户端方案");
             }
         } catch (Throwable t) {
-            ServerDetector.setServerCapabilities(false, false, false, false);
+            ServerDetector.setServerCapabilities(false, false, false, false, false);
             Taczhacker.LOGGER.warn("[TaczHacker][服务端检测] 握手异常，已按无服务端能力处理（不影响游戏）", t);
         }
     }
@@ -94,10 +96,13 @@ public class ServerDetectorClientHandler {
             }
             Taczhacker.CHANNEL.sendToServer(new C2SHandshakePacket(
                     AimHandler.isActive(),
+                    AimHandler.isActive() && HackConfig.aimTrueAim,
                     HackConfig.globalEnabled && HackConfig.aimSinglePlayerHomingBullet,
                     HackConfig.globalEnabled && HackConfig.aimSinglePlayerBulletPenetration));
-            Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 已同步客户端能力位：aim={}, homing={}, penetration={}",
+            Taczhacker.LOGGER.debug("[TaczHacker][服务端检测] 已同步客户端能力位："
+                            + "aim={}, trueAim={}, homing={}, penetration={}",
                     AimHandler.isActive(),
+                    AimHandler.isActive() && HackConfig.aimTrueAim,
                     HackConfig.globalEnabled && HackConfig.aimSinglePlayerHomingBullet,
                     HackConfig.globalEnabled && HackConfig.aimSinglePlayerBulletPenetration);
         } catch (Throwable t) {

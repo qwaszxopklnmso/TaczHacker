@@ -117,6 +117,14 @@ public class ConfigScreen {
                 .build());
         // 单机/局域网专属
         aimCat.addEntry(e.startBooleanToggle(
+                Component.literal("真·自瞄（零散布）"),
+                HackConfig.aimTrueAim
+        ).setTooltip(Component.literal("开火时服务端用你的瞄准角重建弹道，抹掉 Tacz 散布。\n"
+                + "需要双端都装本 mod 且两边都开着（与门）。\n"
+                + "关掉后仍保留功能1 的静默自瞄，但子弹按原版散布飞。"))
+                .setSaveConsumer(v -> HackConfig.aimTrueAim = v)
+                .build());
+        aimCat.addEntry(e.startBooleanToggle(
                 Component.literal("[单机]穿墙子弹"),
                 HackConfig.aimSinglePlayerBulletPenetration
         ).setTooltip(Component.literal("仅单机/局域网有效：子弹穿透方块"))

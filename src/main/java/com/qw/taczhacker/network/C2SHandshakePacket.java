@@ -30,6 +30,8 @@ public class C2SHandshakePacket {
 
     /** 客户端功能1（开火静默自瞄）当前是否生效 */
     private final boolean aim;
+    /** 客户端「真·自瞄」（服务端零散布方向覆盖）开关 */
+    private final boolean trueAim;
     /** 客户端追踪弹开关 */
     private final boolean homing;
     /** 客户端穿墙子弹开关 */
@@ -37,32 +39,42 @@ public class C2SHandshakePacket {
 
     /** 兼容旧调用：不带能力位（一律 false） */
     public C2SHandshakePacket() {
-        this(false, false, false);
+        this(false, false, false, false);
     }
 
-    public C2SHandshakePacket(boolean aim, boolean homing, boolean penetration) {
+    public C2SHandshakePacket(boolean aim, boolean trueAim, boolean homing, boolean penetration) {
         this.aim = aim;
+        this.trueAim = trueAim;
         this.homing = homing;
         this.penetration = penetration;
     }
 
     /**
-     * 编码：末尾追加三个能力位（旧版服务端不读，直接忽略）
+     * 编码：末尾追加四个能力位（旧版服务端只读前三个，多余的字节直接忽略）
+     *
+     * ⚠️ 顺序固定为 aim / homing / penetration / trueAim —— 最后那个 trueAim 是 1.8.10 新加的，
+     * 只能加在**最后**，否则旧服务端会把 trueAim 当成 homing 读，语义全乱。
      */
     public void encode(FriendlyByteBuf buf) {
         buf.writeBoolean(aim);
         buf.writeBoolean(homing);
         buf.writeBoolean(penetration);
+        buf.writeBoolean(trueAim);
     }
 
     /**
-     * 解码：旧版客户端发来的是空包 → 三项全 false（与门里客户端算 false，服务端就不动手）
+     * 解码：旧版客户端只发三个（或空包）→ 缺的位按 false 处理
+     * （与门里客户端算 false，服务端就不动手，保守正确）
      */
     public static C2SHandshakePacket decode(FriendlyByteBuf buf) {
         if (!buf.isReadable(3)) {
-            return new C2SHandshakePacket(false, false, false);
+            return new C2SHandshakePacket(false, false, false, false);
         }
-        return new C2SHandshakePacket(buf.readBoolean(), buf.readBoolean(), buf.readBoolean());
+        boolean aim = buf.readBoolean();
+        boolean homing = buf.readBoolean();
+        boolean penetration = buf.readBoolean();
+        boolean trueAim = buf.isReadable(1) && buf.readBoolean();
+        return new C2SHandshakePacket(aim, trueAim, homing, penetration);
     }
 
     /**
@@ -74,19 +86,21 @@ public class C2SHandshakePacket {
             // 服务端收到握手包，说明客户端也安装了本mod
             ServerPlayer player = ctx.getSender();
             if (player != null) {
-                // 记下这个客户端的三项开关（服务端与门用）
-                ClientFeatureFlags.update(player.getUUID(), msg.aim, msg.homing, msg.penetration);
+                // 记下这个客户端的四项开关（服务端与门用）
+                ClientFeatureFlags.update(player.getUUID(), msg.aim, msg.trueAim, msg.homing, msg.penetration);
 
                 // 回复确认包到客户端，并附带服务端自己实际启用的子弹端能力
                 Taczhacker.CHANNEL.send(
                         PacketDistributor.PLAYER.with(() -> player),
                         new S2CHandshakeAckPacket(
                                 HackConfig.aimEnabled,
+                                HackConfig.aimTrueAim,
                                 HackConfig.aimSinglePlayerHomingBullet,
                                 HackConfig.aimSinglePlayerBulletPenetration)
                 );
-                Taczhacker.LOGGER.debug("[TaczHacker][握手] 收到客户端握手并回复：{}（客户端 aim={}, homing={}, penetration={}）",
-                        player.getName().getString(), msg.aim, msg.homing, msg.penetration);
+                Taczhacker.LOGGER.debug("[TaczHacker][握手] 收到客户端握手并回复：{}"
+                                + "（客户端 aim={}, trueAim={}, homing={}, penetration={}）",
+                        player.getName().getString(), msg.aim, msg.trueAim, msg.homing, msg.penetration);
             }
         });
         ctx.setPacketHandled(true);

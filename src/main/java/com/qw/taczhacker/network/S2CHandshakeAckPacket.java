@@ -22,25 +22,40 @@ public class S2CHandshakeAckPacket {
 
     /** 服务端是否启用了子弹方向自瞄（aim.enabled） */
     private final boolean aimEnabled;
+    /** 服务端是否启用了「真·自瞄」零散布方向覆盖（aim.trueAim） */
+    private final boolean trueAimEnabled;
     /** 服务端是否启用了追踪弹（aim.singlePlayerHomingBullet） */
     private final boolean homingEnabled;
     /** 服务端是否启用了穿墙子弹（aim.singlePlayerBulletPenetration） */
     private final boolean penetrationEnabled;
 
-    public S2CHandshakeAckPacket(boolean aimEnabled, boolean homingEnabled, boolean penetrationEnabled) {
+    public S2CHandshakeAckPacket(boolean aimEnabled, boolean trueAimEnabled,
+                                 boolean homingEnabled, boolean penetrationEnabled) {
         this.aimEnabled = aimEnabled;
+        this.trueAimEnabled = trueAimEnabled;
         this.homingEnabled = homingEnabled;
         this.penetrationEnabled = penetrationEnabled;
     }
 
+    /**
+     * 编码：trueAim 必须追加在**最后**，否则旧客户端会把 homing 读成 trueAim
+     */
     public void encode(FriendlyByteBuf buf) {
         buf.writeBoolean(aimEnabled);
         buf.writeBoolean(homingEnabled);
         buf.writeBoolean(penetrationEnabled);
+        buf.writeBoolean(trueAimEnabled);
     }
 
     public static S2CHandshakeAckPacket decode(FriendlyByteBuf buf) {
-        return new S2CHandshakeAckPacket(buf.readBoolean(), buf.readBoolean(), buf.readBoolean());
+        if (!buf.isReadable(3)) {
+            return new S2CHandshakeAckPacket(false, false, false, false);
+        }
+        boolean aim = buf.readBoolean();
+        boolean homing = buf.readBoolean();
+        boolean penetration = buf.readBoolean();
+        boolean trueAim = buf.isReadable(1) && buf.readBoolean();
+        return new S2CHandshakeAckPacket(aim, trueAim, homing, penetration);
     }
 
     /**
@@ -49,9 +64,10 @@ public class S2CHandshakeAckPacket {
     public static void handle(S2CHandshakeAckPacket msg, Supplier<NetworkEvent.Context> ctxSupplier) {
         NetworkEvent.Context ctx = ctxSupplier.get();
         ctx.enqueueWork(() -> {
-            ServerDetector.setServerCapabilities(true, msg.aimEnabled, msg.homingEnabled, msg.penetrationEnabled);
-            Taczhacker.LOGGER.debug("[TaczHacker][握手] 服务端确认：aim={}, homing={}, penetration={}",
-                    msg.aimEnabled, msg.homingEnabled, msg.penetrationEnabled);
+            ServerDetector.setServerCapabilities(true, msg.aimEnabled, msg.trueAimEnabled,
+                    msg.homingEnabled, msg.penetrationEnabled);
+            Taczhacker.LOGGER.debug("[TaczHacker][握手] 服务端确认：aim={}, trueAim={}, homing={}, penetration={}",
+                    msg.aimEnabled, msg.trueAimEnabled, msg.homingEnabled, msg.penetrationEnabled);
         });
         ctx.setPacketHandled(true);
     }

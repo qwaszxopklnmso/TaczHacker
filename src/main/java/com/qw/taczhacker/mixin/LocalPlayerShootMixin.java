@@ -82,10 +82,16 @@ public class LocalPlayerShootMixin {
         }
 
         if (angles != null) {
-            // 始终设置 pendingAngles，供 TimelessBulletEntityMixin 消费
+            // 设置 pendingAngles，供 TimelessBulletEntityMixin 消费
             // 无论服务端是否有本mod，客户端选中的目标角度都应该传递给子弹方向修改器
             // 使用 volatile 单字段而非队列，避免 Forge 类加载机制导致队列实例不一致
-            AimHandler.pendingAngles = angles;
+            //
+            // 1.8.10：这一项受「真·自瞄」独立开关（aim.trueAim）控制。
+            // 关掉它时**不写** pendingAngles → 子弹保留 Tacz 的原版散布；
+            // 功能1 的静默自瞄照常工作（瞄准旋转包依旧会发）。
+            if (HackConfig.aimTrueAim) {
+                AimHandler.pendingAngles = angles;
+            }
 
             // 2026-10-11 修复（联机锁不到目标 / 转圈时打地板）：
             // 这里以前有一条 `if (ServerDetector.isServerAimAvailable()) return;` ——

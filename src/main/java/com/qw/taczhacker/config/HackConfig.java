@@ -78,6 +78,17 @@ public class HackConfig {
                     + "Set to 0 to disable prediction (aim at current position).")
             .defineInRange("aim.bulletSpeed", 300.0, 0.0, 2000.0);
 
+    private static final ForgeConfigSpec.BooleanValue AIM_TRUE_AIM = BUILDER
+            .comment("【真·自瞄】零散布方向覆盖：开火时服务端用你客户端的瞄准角重建子弹方向，"
+                    + "抹掉 Tacz 的随机散布。\n"
+                    + "需要双端都装本 mod 且两边都开着（与门），和「追踪弹」「穿墙子弹」同一套规则。\n"
+                    + "关掉它仍保留功能1 的静默自瞄（服务器看到的朝向照样是目标），只是子弹按原版散布飞。",
+                    "[True Aim] Zero-spread direction override on the server: rebuild the bullet's "
+                    + "direction from your client-side aim angles, removing Tacz's spread. "
+                    + "Requires TaczHacker on both sides and enabled on both (AND gate, same as "
+                    + "homing/penetration). Turning it off keeps silent aim but restores vanilla spread.")
+            .define("aim.trueAim", true);
+
     private static final ForgeConfigSpec.DoubleValue AIM_RECOIL_COMPENSATION = BUILDER
             .comment("后坐力补偿（度），补偿枪械后坐力对弹道的影响。\n"
                     + "正数=向下压枪（对抗上跳后坐力），负数=向上补偿。\n"
@@ -544,6 +555,7 @@ public class HackConfig {
         AIM_RECOIL_COMPENSATION.set(aimRecoilCompensation);
         AIM_SINGLE_PLAYER_BULLET_PENETRATION.set(aimSinglePlayerBulletPenetration);
         AIM_SINGLE_PLAYER_HOMING_BULLET.set(aimSinglePlayerHomingBullet);
+        AIM_TRUE_AIM.set(aimTrueAim);
 
         // 功能2
         FAKEROT_ENABLED.set(fakerotEnabled);
@@ -678,6 +690,9 @@ public class HackConfig {
     public static boolean aimSinglePlayerBulletPenetration;
     public static boolean aimSinglePlayerHomingBullet;
 
+    /** 真·自瞄：服务端用客户端瞄准角覆盖子弹方向（零散布）。1.8.10 起的独立开关 */
+    public static boolean aimTrueAim;
+
     // 功能2
     public static boolean fakerotEnabled;
     public static double fakerotPitchAngle;
@@ -802,6 +817,7 @@ public class HackConfig {
             aimRecoilCompensation = AIM_RECOIL_COMPENSATION.get();
             aimSinglePlayerBulletPenetration = AIM_SINGLE_PLAYER_BULLET_PENETRATION.get();
             aimSinglePlayerHomingBullet = AIM_SINGLE_PLAYER_HOMING_BULLET.get();
+            aimTrueAim = AIM_TRUE_AIM.get();
 
             // 功能2
             fakerotEnabled = FAKEROT_ENABLED.get();
