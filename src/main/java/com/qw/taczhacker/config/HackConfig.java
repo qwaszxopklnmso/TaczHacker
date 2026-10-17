@@ -67,13 +67,16 @@ public class HackConfig {
             .define("aim.requireGunEquipped", true);
 
     private static final ForgeConfigSpec.DoubleValue AIM_BULLET_SPEED = BUILDER
-            .comment("子弹速度（格/tick），用于提前量预测。不同枪弹速不同，建议值：\n"
-                    + "手枪 ≈ 10，步枪 ≈ 20，狙击 ≈ 30，霰弹 ≈ 8。\n"
+            .comment("子弹速度（**m/s**），用于提前量预测。\n"
+                    + "取 Tacz 弹药 JSON（data/<枪包>/tacz/ammo/*.json）里的 speed 字段，\n"
+                    + "常见取值 120~400（手枪≈200，步枪≈300，狙击≈400，霰弹≈150）。\n"
+                    + "代码内部按「1 秒 = 20 tick」换算成每 tick 位移（= speed / 20）。\n"
                     + "如果设为 0，则跳过提前量预测（直瞄当前位置）。",
-                    "Bullet speed in blocks/tick for prediction. "
-                    + "Pistol ≈ 10, Rifle ≈ 20, Sniper ≈ 30, Shotgun ≈ 8. "
+                    "Bullet speed in **m/s** for lead prediction. "
+                    + "Take the 'speed' field from the Tacz ammo JSON (data/<pack>/tacz/ammo/*.json), "
+                    + "usually 120-400. Converted to blocks/tick as speed / 20. "
                     + "Set to 0 to disable prediction (aim at current position).")
-            .defineInRange("aim.bulletSpeed", 16.5, 0.0, 100.0);
+            .defineInRange("aim.bulletSpeed", 300.0, 0.0, 2000.0);
 
     private static final ForgeConfigSpec.DoubleValue AIM_RECOIL_COMPENSATION = BUILDER
             .comment("后坐力补偿（度），补偿枪械后坐力对弹道的影响。\n"
@@ -788,6 +791,14 @@ public class HackConfig {
             aimPassThroughWalls = AIM_PASS_THROUGH_WALLS.get();
             aimRequireGunEquipped = AIM_REQUIRE_GUN_EQUIPPED.get();
             aimBulletSpeed = AIM_BULLET_SPEED.get();
+            // 1.8.9 起 aim.bulletSpeed 的单位从「格/tick」改成「m/s」（Tacz 弹药 JSON 的 speed）。
+            // 旧值都是个位数到二十几，新单位下这个量级等于子弹 1 格/tick —— 提前量会大得离谱。
+            // 这里不改值（60/80 m/s 是合法弹药速度），只提示一次，免得静默打过头。
+            if (aimBulletSpeed > 0.0D && aimBulletSpeed < 100.0D) {
+                LOGGER.warn("[TaczHacker] aim.bulletSpeed={} 看起来还是旧单位（格/tick）。"
+                        + "单位已改为 m/s（取 Tacz 弹药 JSON 的 speed，常见 120~400），"
+                        + "建议改成枪械实际弹速，否则提前量会偏大。", aimBulletSpeed);
+            }
             aimRecoilCompensation = AIM_RECOIL_COMPENSATION.get();
             aimSinglePlayerBulletPenetration = AIM_SINGLE_PLAYER_BULLET_PENETRATION.get();
             aimSinglePlayerHomingBullet = AIM_SINGLE_PLAYER_HOMING_BULLET.get();

@@ -239,9 +239,18 @@ public class AimHandler {
 
         if (candidates.isEmpty()) return null;
 
-        // 选最近目标
+        // ⚠️ 2026-10-17 改：以前这里选「最近的」，作者反馈「索敌有时候容易偏」——
+        // 准心明明对着 A，但因为 B 离你更近，子弹被拽去 B。
+        // 现在改成「**与准心夹角最小**优先，夹角相同再比距离」：
+        // 准心正对着谁就打谁，两个都在准心上时才选近的。
+        Vec3 lookNorm = lookVec.normalize();
         return candidates.stream()
-                .min(Comparator.comparingDouble(player::distanceTo))
+                .min(Comparator
+                        .comparingDouble((LivingEntity e) -> {
+                            Vec3 to = e.getEyePosition(1.0f).subtract(eyePos);
+                            return to.lengthSqr() < 1.0E-8 ? 0.0D : -lookNorm.dot(to.normalize());
+                        })
+                        .thenComparingDouble(player::distanceTo))
                 .orElse(null);
     }
 
@@ -261,14 +270,17 @@ public class AimHandler {
             Vec3 targetVelocity = target.getDeltaMovement();
             double distance = playerEye.distanceTo(targetPos);
 
-            // 子弹飞行时间 ≈ 距离 / 弹速（从配置读取，用户可根据当前枪械调整）
-            double bulletSpeed = HackConfig.aimBulletSpeed;
-            if (bulletSpeed <= 0) {
-                // 弹速为 0 时跳过提前量预测，直瞄当前位置
-                // 仅对目标位置不加预测偏移
-            } else {
-                double flightTime = Math.max(0.1, distance / bulletSpeed);
-                // 预测位置 = 当前位置 + 速度 × 飞行时间 × 系数
+            // ⚠️ 2026-10-17 修：Tacz 的弹速单位是 **m/s**（弹药 JSON 的 speed 字段，
+            // 实测取值 20 / 120 / 200 / 300 …），不是"格/tick"。
+            // 内部按 1 秒 = 20 tick 换算成每 tick 位移，再算飞行时间（tick）。
+            // 旧代码直接 distance / bulletSpeed，等于把飞行时间少算了 20 倍，
+            // 提前量严重不足 —— 打移动目标子弹总是落在人后面。
+            double bulletSpeedMps = HackConfig.aimBulletSpeed;
+            if (bulletSpeedMps > 0) {
+                double blocksPerTick = bulletSpeedMps / 20.0D;
+                // 飞行时间（tick）。下限 0.05 tick 只是防 0 除/极端值
+                double flightTime = Math.max(0.05D, distance / blocksPerTick);
+                // 预测位置 = 当前位置 + 速度(格/tick) × 飞行时间(tick) × 系数
                 targetPos = targetPos.add(targetVelocity.scale(flightTime * predictionFactor));
             }
         }
@@ -364,7 +376,20 @@ public class AimHandler {
         }
 
         if (candidates.isEmpty()) return null;
-        // 按距离 center 的距离排序，选最近的目标
+
+        if (useCone) {
+            // 有方向约束时：**与参考方向夹角最小**优先（= 准心最靠的），夹角相同再比距离
+            Vec3 dirFinal = dirNorm;
+            return candidates.stream()
+                    .min(Comparator
+                            .comparingDouble((LivingEntity e) -> {
+                                Vec3 to = e.getBoundingBox().getCenter().subtract(center);
+                                return to.lengthSqr() < 1.0E-8 ? 0.0D : -dirFinal.dot(to.normalize());
+                            })
+                            .thenComparingDouble(e -> center.distanceTo(e.position())))
+                    .orElse(null);
+        }
+        // 没给方向（兜底路径）：仍然按「最近的」
         return candidates.stream()
                 .min(Comparator.comparingDouble(e -> center.distanceTo(e.position())))
                 .orElse(null);

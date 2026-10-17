@@ -101,10 +101,11 @@ public class ConfigScreen {
                 .setSaveConsumer(v -> HackConfig.aimRequireGunEquipped = v)
                 .build());
         aimCat.addEntry(e.startDoubleField(
-                Component.literal("子弹速度（格/tick）"),
+                Component.literal("子弹速度（m/s）"),
                 HackConfig.aimBulletSpeed
-        ).setTooltip(Component.literal("用于提前量预测。手枪≈10，步枪≈20，狙击≈30"))
-                .setMin(0.0).setMax(100.0)
+        ).setTooltip(Component.literal("用于提前量预测。取 Tacz 弹药 JSON 的 speed 字段。\n"
+                + "常见 120~400：手枪≈200，步枪≈300，狙击≈400，霰弹≈150。"))
+                .setMin(0.0).setMax(2000.0)
                 .setSaveConsumer(v -> HackConfig.aimBulletSpeed = v)
                 .build());
         aimCat.addEntry(e.startDoubleField(
